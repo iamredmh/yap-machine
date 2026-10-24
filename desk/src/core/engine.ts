@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
  * How the desk runs the Python engine (`yap-machine`). In order:
  *   YAP_BIN               an explicit command, e.g. "/opt/yap/bin/yap"
  *   the repo checkout     the installed .venv executable, with uv as a pre-install fallback
- *   yap-machine on PATH    installed with `uv tool install yap-machine`
+ *   yap-machine on PATH    a separately configured engine outside a source checkout
  */
 export function sourceCheckout(here = dirname(fileURLToPath(import.meta.url))): string | null {
   for (let at = here, i = 0; i < 6; at = dirname(at), i++) {
@@ -39,7 +39,9 @@ export function runtimeEnvironment(opts: { env?: NodeJS.ProcessEnv; platform?: N
     ...(root ? [join(root, ".venv", platform === "win32" ? "Scripts" : "bin")] : []),
     ...(platform === "darwin" ? ["/opt/homebrew/bin", "/usr/local/bin"] : []),
     ...(env[key] ?? "").split(separator).filter(Boolean)];
-  return { ...env, [key]: [...new Set(paths)].join(separator) };
+  // Explicit source discovery also works when Python skips an editable-install .pth file.
+  const pythonPath = root ? [join(root, "src"), ...(env.PYTHONPATH ? [env.PYTHONPATH] : [])].join(separator) : undefined;
+  return { ...env, [key]: [...new Set(paths)].join(separator), ...(pythonPath ? { PYTHONPATH: pythonPath } : {}) };
 }
 
 export interface RunResult { code: number; out: string }

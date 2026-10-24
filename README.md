@@ -49,8 +49,9 @@ To connect an agent, run the installer with its name:
 # Or: --agent=codex, --agent=cursor, --agent=gemini, --agent=claude-desktop
 ```
 
-This registers the local checkout with that agent and backs up any configuration it
-changes. Restart the agent session to load the tools. The agent also needs local file
+This registers the local checkout with that agent. JSON/TOML configuration files
+are backed up before editing; Claude Code registration uses its native `claude mcp`
+commands. Restart the agent session to load the tools. The agent also needs local file
 and terminal access to make edits; the review connection alone does not provide it.
 Keep the checkout in its installed location so the connection continues to work.
 

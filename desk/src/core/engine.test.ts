@@ -33,4 +33,15 @@ describe("source engine launch", () => {
     expect(runtime.EXAMPLE).toBe("preserved");
     expect(env.PATH).toBe("/usr/bin:/bin:/opt/homebrew/bin");
   });
+  it("finds local Python sources without relying on editable .pth discovery and preserves existing imports", () => {
+    const env = { PYTHONPATH: "/existing modules:/shared/python" };
+    const runtime = runtimeEnvironment({ fromDir, env, platform: "darwin" });
+    expect(runtime.PYTHONPATH).toBe(`${join(root, "src")}:/existing modules:/shared/python`);
+    expect(env.PYTHONPATH).toBe("/existing modules:/shared/python");
+    expect(runtimeEnvironment({ fromDir, env: {}, platform: "linux" }).PYTHONPATH).toBe(join(root, "src"));
+  });
+  it("leaves Python import configuration alone outside a source checkout", () => {
+    expect(runtimeEnvironment({ fromDir: tmpdir(), env: { PYTHONPATH: "/custom/python" } }).PYTHONPATH).toBe("/custom/python");
+    expect(runtimeEnvironment({ fromDir: tmpdir(), env: {} })).not.toHaveProperty("PYTHONPATH");
+  });
 });

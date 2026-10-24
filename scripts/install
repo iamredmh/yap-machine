@@ -57,7 +57,7 @@ echo 'Open the editor: ./scripts/start-desk'
 echo 'Check all tools: ./scripts/yap-machine doctor'
 echo 'Connect an agent: node desk/dist/cli/index.js setup --local --only claude-code'
 echo
-if ! .venv/bin/python -c 'import shutil; from yap.transcribe import find_model; assert shutil.which("whisper-cli") or shutil.which("whisper-cpp"); find_model()' >/dev/null 2>&1; then
+if ! PYTHONPATH="$yap_root/src${PYTHONPATH:+:$PYTHONPATH}" .venv/bin/python -c 'import shutil; from yap.transcribe import find_model; assert shutil.which("whisper-cli") or shutil.which("whisper-cpp"); find_model()' >/dev/null 2>&1; then
   echo 'Automatic transcription still needs whisper.cpp and a speech model.'
   echo 'See the Transcription section in README.md to finish speech setup.'
 fi

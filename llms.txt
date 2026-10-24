@@ -21,7 +21,7 @@ You need local terminal and file access, as in Claude Code or Codex. A chat sess
 
        ./scripts/install --agent=claude-code
 
-   Replace `claude-code` with `codex`, `cursor`, `gemini` or `claude-desktop` as appropriate. Omit `--agent` to install without changing agent configuration. Registration uses the local checkout, not npm, and backs up configuration files it changes. An installation request that includes connecting the named agent authorizes that setup; report which configuration was updated. Do not register unrelated agents.
+   Replace `claude-code` with `codex`, `cursor`, `gemini` or `claude-desktop` as appropriate. Omit `--agent` to install without changing agent configuration. Registration uses the local checkout, not npm. JSON/TOML files are backed up before editing; Claude Code registration uses its native `claude mcp` commands. An installation request that includes connecting the named agent authorizes that setup; report which configuration was updated. Do not register unrelated agents.
 
    To inspect registration changes separately after installation:
 

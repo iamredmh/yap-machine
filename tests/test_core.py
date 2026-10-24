@@ -148,6 +148,7 @@ def test_the_agent_skill_is_readable_from_the_cli():
 
 def test_a_missing_ffmpeg_gives_the_install_line_not_a_traceback(monkeypatch, capsys, tmp_path):
     import shutil
+    import sys
     import pytest
     from yap import cli
     monkeypatch.setattr(shutil, "which", lambda name, *a, **k: None)
@@ -155,7 +156,8 @@ def test_a_missing_ffmpeg_gives_the_install_line_not_a_traceback(monkeypatch, ca
         cli.main(["init", str(tmp_path / "p"), "--footage", str(tmp_path)])
     assert e.value.code == 2
     err = capsys.readouterr().err
-    assert "ffmpeg" in err and "brew install ffmpeg" in err and "yap-machine doctor" in err and "Traceback" not in err
+    install = "brew install ffmpeg" if sys.platform == "darwin" else "apt install ffmpeg"
+    assert "ffmpeg" in err and install in err and "yap-machine doctor" in err and "Traceback" not in err
 
 
 def test_doctor_and_skill_still_work_without_ffmpeg(monkeypatch, capsys):

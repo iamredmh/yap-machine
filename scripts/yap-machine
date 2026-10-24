@@ -5,4 +5,5 @@ if [[ ! -x "$yap_root/.venv/bin/yap-machine" ]]; then
   echo 'Run ./scripts/install in the Yap Machine folder first.' >&2
   exit 1
 fi
+export PYTHONPATH="$yap_root/src${PYTHONPATH:+:$PYTHONPATH}"
 exec "$yap_root/.venv/bin/yap-machine" "$@"
