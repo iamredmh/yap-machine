@@ -1,0 +1,201 @@
+{
+  "title": {
+    "kind": "shared",
+    "file": "src/scenes/TitleStack.tsx",
+    "job": "A lead-in, two or three headline lines with one word in the hero colour (it lands on the pack's spring), and the presenter in the half band below when the plan has a shoot.",
+    "use": "The hook, and the start of a new section.",
+    "presenter": "halfBand",
+    "needsShoot": false,
+    "lane": "presenter",
+    "props": {
+      "lead": { "type": "string", "required": true, "note": "The lead-in, set in the accent voice: the set-up, 2 to 5 words." },
+      "lines": { "type": "{ t: string, hero?: true }[][]", "required": true, "note": "Two or three headline lines of 1 to 3 words each, as words. Mark the one word that matters `hero: true`." },
+      "sizes": { "type": "number[]", "required": true, "note": "A reference size per line (a size of 100 is a cap height of 70 px)." },
+      "theme": { "type": "\"dark\" | \"light\"", "required": false, "note": "The ground; leave it out for the pack's." }
+    },
+    "example": { "lead": "Claude Code just got", "lines": [[{ "t": "Mods" }], [{ "t": "5", "hero": true }, { "t": "to install now" }]], "sizes": [260, 110] }
+  },
+  "talk": {
+    "kind": "shared",
+    "file": "src/scenes/Talk.tsx",
+    "job": "The presenter talking, in one of the pack's layouts: full frame on their room, the half band under a heading, or a tile under a heading.",
+    "use": "Most of a video: whenever the words carry the beat and no graphic would prove the point better.",
+    "presenter": "layout",
+    "needsShoot": true,
+    "lane": "presenter",
+    "props": {
+      "layout": { "type": "\"full\" | \"halfBand\" | \"tile\"", "required": true, "note": "The presenter layout. Only the layouts the pack allows." },
+      "punches": { "type": "number[]", "required": false, "note": "Full frame only: frames inside the shot where the frame punches in, then back out at the next one, and so on, on the pack's punch-in." },
+      "label": { "type": "string", "required": false, "note": "Half band and tile only: an eyebrow over the heading, 1 to 4 words." },
+      "head": { "type": "string", "required": false, "note": "Half band and tile only: one headline line held over the presenter, 1 to 3 words: the point being made." },
+      "theme": { "type": "\"dark\" | \"light\"", "required": false, "note": "Half band and tile only: the ground above the presenter." }
+    },
+    "example": { "layout": "full", "punches": [24] }
+  },
+  "list": {
+    "kind": "shared",
+    "file": "src/scenes/ListItem.tsx",
+    "job": "One item of a list: where it is in the list, its name, a line on what it does, and a card of facts with the one that matters in the hero colour. Graphic only.",
+    "use": "Each item of a list video (tools, steps, mistakes), when the item has a name and two to four facts worth showing.",
+    "presenter": null,
+    "needsShoot": false,
+    "lane": "ground",
+    "props": {
+      "index": { "type": "number", "required": true, "note": "This item's number, from 1." },
+      "of": { "type": "number", "required": true, "note": "How many items the list has." },
+      "kind": { "type": "string", "required": true, "note": "The word before the counter: Tool, Step, Mod, Mistake." },
+      "name": { "type": "string", "required": true, "note": "The item's name, 1 or 2 words." },
+      "line": { "type": "string", "required": true, "note": "What it does, one short sentence (under about 50 characters)." },
+      "facts": { "type": "{ k: string, v: string, win?: true }[]", "required": true, "note": "Two to four rows of a label and a short value; mark the one that matters `win: true`." },
+      "icon": { "type": "string", "required": false, "note": "An icon by name, drawn in the pack's icon style when it has one: bolt, clock, coin, chart, trend, spark, check, chat, code, star, heart, gauge, eye, target, layers, play, user, mail, lock." },
+      "theme": { "type": "\"dark\" | \"light\"", "required": false, "note": "The ground; leave it out for the pack's." }
+    },
+    "example": { "index": 1, "of": 5, "kind": "Mod", "name": "Token Ledger", "line": "Every turn's cost, live, in the status line.", "facts": [{ "k": "Context used", "v": "41%" }, { "k": "Tokens saved", "v": "128k", "win": true }, { "k": "Turns", "v": "17" }] }
+  },
+  "stat": {
+    "kind": "shared",
+    "file": "src/scenes/StatCompare.tsx",
+    "job": "Before and after: a lead-in and a headline, a short paragraph, then a card with the old number struck through and the new one in the hero colour. Graphic only.",
+    "use": "A number that changed: a cost, a time, a count. The payoff of a claim.",
+    "presenter": null,
+    "needsShoot": false,
+    "lane": "ground",
+    "props": {
+      "lead": { "type": "string", "required": true, "note": "The lead-in: what the number is, 2 to 5 words." },
+      "title": { "type": "string", "required": true, "note": "The headline, 1 to 3 words: the unit or the frame (Per month, Every week)." },
+      "text": { "type": "string", "required": true, "note": "A short paragraph the engine breaks to the pack's measure: two or three lines." },
+      "before": { "type": "{ k: string, v: string }", "required": true, "note": "The old number: a label and the value (struck through)." },
+      "after": { "type": "{ k: string, v: string }", "required": true, "note": "The new number: a label and the value (in the hero colour)." },
+      "icon": { "type": "string", "required": false, "note": "An icon by name, drawn in the pack's icon style when it has one: bolt, clock, coin, chart, trend, spark, check, chat, code, star, heart, gauge, eye, target, layers, play, user, mail, lock." },
+      "theme": { "type": "\"dark\" | \"light\"", "required": false, "note": "The ground; leave it out for the pack's." }
+    },
+    "example": { "lead": "What it costs you", "title": "Per month", "text": "Same tools and the same team. The bill went from a line on every invoice to nothing at all.", "before": { "k": "Before", "v": "$240" }, "after": { "k": "After", "v": "$0" } }
+  },
+  "quote": {
+    "kind": "shared",
+    "file": "src/scenes/QuoteCard.tsx",
+    "job": "A quote: the words in the headline voice, one size for every line, the open and close marks in the hero colour, the name and role under it. Graphic only; its words are on screen, so captions hide.",
+    "use": "Someone else's words: a customer, a review, a line from a source.",
+    "presenter": null,
+    "needsShoot": false,
+    "lane": "none",
+    "props": {
+      "lines": { "type": "string[]", "required": true, "note": "The quote broken by hand into 2 to 4 lines of about 15 to 20 characters, at the breaths." },
+      "name": { "type": "string", "required": true, "note": "Who said it." },
+      "role": { "type": "string", "required": true, "note": "Their role and company, or where it was said." },
+      "theme": { "type": "\"dark\" | \"light\"", "required": false, "note": "The ground; leave it out for the pack's." }
+    },
+    "example": { "lines": ["Invoicing took my", "whole Friday. Now", "it runs overnight."], "name": "Client name", "role": "Founder · Their company" }
+  },
+  "word-pop": {
+    "kind": "pack",
+    "file": "src/pack-scenes/WordPop.tsx",
+    "job": "Land the spoken line word by word: big words popping in over the speaker, the key word on a coloured box with a quick punch-in, a soft flash and a small shake.",
+    "use": "The line that matters most in a stretch of talk: the hook's payoff, a reveal, a verdict. Its words are the captions, so the caption track hides under it.",
+    "presenter": "full",
+    "needsShoot": true,
+    "lane": "none",
+    "props": {
+      "groups": { "type": "{ from: number, to: number, words: { text: string, at: number, key?: true }[] }[]", "required": true, "note": "The words on screen together, from frame `from` to `to` inside the shot; each word lands at its own frame `at` (when it's said). One key word per shot, usually last and on its own." },
+      "size": { "type": "number", "required": false, "note": "The word size (default 170). Lower it for a long word." },
+      "y": { "type": "number", "required": false, "note": "Where the words sit, px from the top (default 1340, on the presenter's chest)." }
+    },
+    "example": { "groups": [{ "from": 0, "to": 22, "words": [{ "text": "this", "at": 0 }, { "text": "mod", "at": 7 }] }, { "from": 22, "to": 46, "words": [{ "text": "is", "at": 22 }, { "text": "basically", "at": 28 }] }, { "from": 46, "to": 96, "words": [{ "text": "cheating", "at": 46, "key": true }] }] }
+  },
+  "slam": {
+    "kind": "pack",
+    "file": "src/pack-scenes/Slam.tsx",
+    "job": "One number or word that hits, as big as the frame allows: the old value above it struck out, then the new one slamming down on the spoken word with a shake, a shockwave in the hero colour and the pack's flash, and a short line under it. Graphic only.",
+    "use": "The payoff number: the cost that went to zero, the 10x, the one figure the video exists for. Once or twice a video, never two in a row.",
+    "presenter": null,
+    "needsShoot": false,
+    "lane": "ground",
+    "props": {
+      "value": { "type": "string", "required": true, "note": "The number or word that lands, up to about 6 characters: $0, 10x, FREE." },
+      "was": { "type": "string", "required": false, "note": "The old value, waiting above and struck out just before the new one lands ($240)." },
+      "label": { "type": "string", "required": false, "note": "A short line under it, 1 to 4 words: per month, saved every week." },
+      "at": { "type": "number", "required": false, "note": "The frame inside the shot where the value lands: the word that says it (default 10)." },
+      "theme": { "type": "\"dark\" | \"light\"", "required": false, "note": "The ground; leave it out for the pack's." }
+    },
+    "example": { "value": "$0", "was": "$240", "label": "per month", "at": 12 }
+  },
+  "chart": {
+    "kind": "pack",
+    "file": "src/pack-scenes/Chart.tsx",
+    "job": "An editorial chart on the page: a lead-in and a headline, a hairline rule drawn across, then two to five bars drawn in one after another from a hairline axis, each value counting up at its bar's end, the bar that matters in the hero colour, and a source line. Graphic only.",
+    "use": "Numbers worth comparing: before and after, this against that, a ranking. The evidence behind a claim, shown rather than said.",
+    "presenter": null,
+    "needsShoot": false,
+    "lane": "ground",
+    "props": {
+      "lead": { "type": "string", "required": true, "note": "The lead-in: what's measured, 2 to 5 words." },
+      "title": { "type": "string", "required": true, "note": "The headline, 1 to 3 words: the unit or the frame (Per month, Hours a week)." },
+      "bars": { "type": "{ k: string, v: number, label: string, win?: true }[]", "required": true, "note": "Two to five bars, in the order they draw: a name, the number that sets the bar's length, and the value as shown ($240, 12 h). Mark the one that matters `win: true`." },
+      "source": { "type": "string", "required": false, "note": "Where the numbers come from, set small under the chart: Source: my invoices, January to June." },
+      "theme": { "type": "\"dark\" | \"light\"", "required": false, "note": "The ground; leave it out for the pack's." }
+    },
+    "example": { "lead": "What it costs you", "title": "Per month", "bars": [{ "k": "Before", "v": 240, "label": "$240" }, { "k": "After", "v": 0, "label": "$0", "win": true }], "source": "Source: my invoices, January to June" }
+  },
+  "doodle": {
+    "kind": "pack",
+    "file": "src/pack-scenes/Doodle.tsx",
+    "job": "The presenter full frame with the whiteboard drawn onto the footage: a scrap of paper taped above their head with a few handwritten words (the key one on the marker), an arrow drawn from it down to the side of their head, and three strokes of emphasis by the other ear. It never crosses the face; captions run under it.",
+    "use": "A verdict, a reaction or the one thing to remember while the presenter talks: the hook's payoff, the 'wait, what', the takeaway. It keeps the face on screen and puts the style on it.",
+    "presenter": "full",
+    "needsShoot": true,
+    "lane": "presenter",
+    "props": {
+      "note": { "type": "string", "required": true, "note": "1 to 4 handwritten words, about 16 characters at most; `*word*` puts one on the marker. The gist, not the caption: = basically *cheating*." },
+      "side": { "type": "\"left\" | \"right\"", "required": false, "note": "Which side of the head the note leans to and the arrow points at (default: the side with more room)." },
+      "from": { "type": "number", "required": false, "note": "The frame inside the shot where the note lands, on the words it sums up (default 4); the arrow follows it." }
+    },
+    "example": { "note": "basically *cheating*", "from": 6 }
+  },
+  "command": {
+    "kind": "pack",
+    "file": "src/pack-scenes/Command.tsx",
+    "job": "A terminal window types a command at the prompt, then prints its output a line at a time, the line that matters picked out with the pack's mark, and ends on a fresh prompt with the cursor blinking. With a shoot the presenter sits under it in the tile, as a second window.",
+    "use": "Anything a viewer could run, install or set up: the command, and what it prints. A list item told as an install, a result read off the screen.",
+    "presenter": "tile",
+    "needsShoot": false,
+    "lane": "presenter",
+    "props": {
+      "command": { "type": "string", "required": true, "note": "The command as typed, under about 34 characters: claude mods add token-ledger." },
+      "output": { "type": "{ t: string, win?: true }[]", "required": true, "note": "Two to five lines it prints, each under about 34 characters; mark the line that matters `win: true`. Plain words read best: resolved 3 packages, tokens saved: 128k." },
+      "title": { "type": "string", "required": false, "note": "The window's title (default: the command's first word)." },
+      "theme": { "type": "\"dark\" | \"light\"", "required": false, "note": "The ground; leave it out for the pack's." }
+    },
+    "example": { "command": "claude mods add token-ledger", "output": [{ "t": "✓ installed token-ledger 1.4" }, { "t": "✓ status line patched" }, { "t": "tokens saved: 128k", "win": true }] }
+  },
+  "float": {
+    "kind": "pack",
+    "file": "src/pack-scenes/Float.tsx",
+    "job": "The presenter full frame with the focus pulled gently off them, soft and barely darker, while a card of the pack's surface floats up in front of them, breathing: a headline over a big number (the old one struck out beside it), or over two or three facts. The card stands on the caption lane, over the mouth and chest and never above the eye line, so the eyes stay in the shot above it; captions run under it.",
+    "use": "A number, or a list item's few facts, while the presenter keeps talking: the card carries the point and the person stays on screen. The style's way to show a figure or a tool without cutting away from the face.",
+    "presenter": "full",
+    "needsShoot": true,
+    "lane": "presenter",
+    "props": {
+      "title": { "type": "string", "required": true, "note": "The card's headline, 1 to 3 words: what the number or the facts are." },
+      "lead": { "type": "string", "required": false, "note": "A lead-in over the headline, 2 to 5 words." },
+      "value": { "type": "string", "required": false, "note": "A big number under the headline, in the hero colour, up to about 6 characters ($0, 3x). Give this or facts." },
+      "was": { "type": "string", "required": false, "note": "With value: the old number, struck out beside it ($240)." },
+      "facts": { "type": "{ k: string, v: string, win?: true }[]", "required": false, "note": "Instead of value: two or three rows of a label and a short value (a fourth makes the card smaller, to keep it under the eyes); mark the one that matters `win: true`." },
+      "icon": { "type": "string", "required": false, "note": "An icon by name, drawn in the pack's icon style when it has one: bolt, clock, coin, chart, trend, spark, check, chat, code, star, heart, gauge, eye, target, layers, play, user, mail, lock." }
+    },
+    "example": { "lead": "What it costs you", "title": "Per month", "value": "$0", "was": "$240" }
+  },
+  "sticker": {
+    "kind": "pack",
+    "file": "src/pack-scenes/Sticker.tsx",
+    "job": "The presenter full frame with stickers slapped on around their head one by one, on the spoken words: a phrase on an ink-bordered tag, a number in a starburst, an icon stuck to a tag's corner. Each lands big and tilted, settles with a bounce and kicks the frame with a small shake; a struck tag is crossed out as the next one lands. They keep off the face and the caption lane.",
+    "use": "A punchline, a price or a reaction you want to feel physical: the old number crossed out and the new one in a starburst, the verdict on a tag. One to three stickers, each on its word.",
+    "presenter": "full",
+    "needsShoot": true,
+    "lane": "presenter",
+    "props": {
+      "stickers": { "type": "{ text: string, at: number, kind?: \"tag\" | \"burst\", icon?: string, strike?: true }[]", "required": true, "note": "One to three stickers in the order they land, each at its frame inside the shot (when its word is said). `tag` (the default): a phrase of 1 to 3 words. `burst`: a number or a word of up to 5 characters in a starburst. `icon` sticks an icon on a tag's corner (the list's icon names); `strike` crosses a tag out as the next sticker lands (the old price)." }
+    },
+    "example": { "stickers": [{ "text": "$240", "at": 6, "strike": true }, { "text": "$0", "at": 40, "kind": "burst" }] }
+  }
+}

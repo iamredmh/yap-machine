@@ -1,0 +1,221 @@
+{
+  "schema": 1,
+  "styles": [
+    {
+      "id": "volt",
+      "name": "Volt",
+      "summary": "Bold words, sharp punch-ins and electric colour.",
+      "accent": "#FFE600",
+      "background": "#0B0B0E",
+      "font": "Anton",
+      "signature": "solid"
+    },
+    {
+      "id": "ledger",
+      "name": "Ledger",
+      "summary": "Editorial type, paper cards and calm pacing.",
+      "accent": "#D7261E",
+      "background": "#F4F1EA",
+      "font": "EB Garamond",
+      "signature": "solid"
+    },
+    {
+      "id": "sketch",
+      "name": "Sketch",
+      "summary": "Handwritten notes, torn paper and drawn arrows.",
+      "accent": "#FFD43B",
+      "background": "#FBF7EE",
+      "font": "Caveat",
+      "signature": "sketch"
+    },
+    {
+      "id": "terminal",
+      "name": "Terminal",
+      "summary": "Typed captions, code windows and phosphor green.",
+      "accent": "#3DFF8F",
+      "background": "#050806",
+      "font": "VT323",
+      "signature": "terminal"
+    },
+    {
+      "id": "glass",
+      "name": "Glass",
+      "summary": "Frosted cards, soft motion and glowing accents.",
+      "accent": "#6EF2D1",
+      "background": "#07061A",
+      "font": "Sora",
+      "signature": "glass"
+    },
+    {
+      "id": "pop",
+      "name": "Pop",
+      "summary": "Stickers, heavy borders and playful whip cuts.",
+      "accent": "#FF4D8D",
+      "background": "#FFE14D",
+      "font": "Archivo Black",
+      "signature": "brutal"
+    }
+  ],
+  "effects": [
+    {
+      "id": "orbit",
+      "name": "Orbit",
+      "group": "Emphasis",
+      "description": "Icons orbit around the presenter.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "chat-takeover",
+      "name": "Chat takeover",
+      "group": "Layouts",
+      "description": "Your video appears in an animated chat window.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "frame-escape",
+      "name": "Frame escape",
+      "group": "Transform",
+      "description": "The presenter steps beyond the edge of a tilted card.",
+      "asset": false,
+      "matte": true
+    },
+    {
+      "id": "snap-zoom",
+      "name": "Snap zoom",
+      "group": "Motion",
+      "description": "A fast punch-in on an important moment.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "checklist-pop",
+      "name": "Checklist pop",
+      "group": "Explain",
+      "description": "Steps tick off beside the presenter.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "headline-storm",
+      "name": "Headline storm",
+      "group": "Emphasis",
+      "description": "Headline strips arrive around the picture.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "zoom-portal",
+      "name": "Zoom portal",
+      "group": "Motion",
+      "description": "A circular duplicate sweeps across the frame.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "growth-curve",
+      "name": "Growth curve",
+      "group": "Explain",
+      "description": "Animate your values as a line chart.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "studio-reveal",
+      "name": "Studio reveal",
+      "group": "Transform",
+      "description": "Reveal a virtual studio behind the presenter.",
+      "asset": false,
+      "matte": true
+    },
+    {
+      "id": "b-roll-overlay",
+      "name": "B-roll overlay",
+      "group": "Explain",
+      "description": "Show an image or supporting clip while the voice continues.",
+      "asset": true,
+      "matte": false
+    },
+    {
+      "id": "paper-cutout",
+      "name": "Paper cutout",
+      "group": "Transform",
+      "description": "A paper outline and graphic backdrop behind the presenter.",
+      "asset": false,
+      "matte": true
+    },
+    {
+      "id": "dolly-zoom",
+      "name": "Dolly zoom",
+      "group": "Motion",
+      "description": "Keep the presenter steady while the background pulls away.",
+      "asset": false,
+      "matte": true
+    },
+    {
+      "id": "magazine-cover",
+      "name": "Magazine cover",
+      "group": "Layouts",
+      "description": "Place the presenter in front of a magazine masthead.",
+      "asset": false,
+      "matte": true
+    },
+    {
+      "id": "liquid-glass",
+      "name": "Liquid glass",
+      "group": "Transform",
+      "description": "A moving lens refracts the picture.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "zoom-through-cut",
+      "name": "Zoom through cut",
+      "group": "Motion",
+      "description": "A quick zoom bridges the next cut.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "green-screen",
+      "name": "Replace background",
+      "group": "Transform",
+      "description": "Replace the room with your own image or video.",
+      "asset": true,
+      "matte": true
+    },
+    {
+      "id": "frame-break",
+      "name": "Frame break",
+      "group": "Motion",
+      "description": "The picture shatters into animated fragments.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "digital-zoom",
+      "name": "Digital zoom",
+      "group": "Motion",
+      "description": "A digital camera overlay follows a smooth zoom.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "phone-mockup",
+      "name": "Phone mockup",
+      "group": "Layouts",
+      "description": "Play the video inside a phone frame.",
+      "asset": false,
+      "matte": false
+    },
+    {
+      "id": "checklist",
+      "name": "Checklist",
+      "group": "Explain",
+      "description": "Build a full-screen checklist and completion count.",
+      "asset": false,
+      "matte": false
+    }
+  ]
+}

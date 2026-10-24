@@ -1,0 +1,27 @@
+The desk builds on Rushes — https://github.com/iamredmh/rushes (MIT, Copyright (c) Red Morley Hewitt):
+the project lock, the atomic JSON store, file serving with byte ranges, the MCP client/ensure
+pattern, agent setup for Claude Code / Codex / Cursor / Claude Desktop / Gemini CLI, and the
+notes → batch → reply loop come from it.
+
+The Desk's own code is MIT licensed. Its bundled browser dependencies retain
+their own licenses; the Desk's MIT license does not replace them.
+
+Style Studio engine (MIT, Copyright (c) 2026 kelano86):
+https://github.com/kelano86/style-studio-engine
+Vendored from commit 1d4f96b8ee1c95720691e05a54f510dde7a164cd.
+
+Preact (MIT, Jason Miller), React / React DOM / Scheduler (MIT, Meta Platforms,
+Inc. and affiliates), and QR Code Generator (MIT, Kazuhiko Arase) are bundled
+into the browser application. Geist Sans, Geist Mono and the style-pack fonts
+retain their SIL Open Font License 1.1 notices.
+
+Remotion and @remotion/player are bundled into the live preview and use the
+Remotion License, not MIT. Eligible individuals, small for-profit organizations
+(up to three employees), and nonprofits may use pinned version 4.0.530 free;
+other organizations require a Company License. Each user must comply with the
+applicable terms: https://www.remotion.dev/license
+
+Exact dependency license texts, font notices and source/version metadata are
+shipped in web-dist/licenses/ (open /licenses/index.html on the local Desk).
+The source build creates these with scripts/copy-licenses.mjs. Dependencies
+installed separately by npm retain their notices in their own packages.

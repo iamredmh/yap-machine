@@ -1,0 +1,191 @@
+/* The finishing workspace: a quiet canvas, readable controls, real previews.
+   Main text 14px; metadata 12–13px; primary targets 40–44px. */
+.look-view { height:100%; min-height:0; }
+.visual-studio { --ink:#242422; --ink-2:#56564f; --ink-3:#67675e; --line:#e3e1db; --line-2:#d5d2c8; --tint:#f5f4f0; height:100%; min-height:0; display:flex; flex-direction:column; min-width:0; background:#faf9f6; }
+.visual-studio .small,.visual-studio .field { font-size:14px; }
+.visual-studio .fine { font-size:12px; line-height:1.5; }
+.visual-studio .label { font-size:11px; letter-spacing:.12em; }
+.visual-studio button { transition:background .15s,border-color .15s,box-shadow .15s; }
+.visual-studio .btn { min-height:40px; border-radius:9px; padding:8px 14px; font-size:13px; }
+.visual-studio input:not([type=range]):not([type=checkbox]):not([type=color]),.visual-studio select,.visual-studio textarea { border-radius:8px; border:1px solid var(--line-2); background:white; font-size:14px; padding:10px 12px; min-height:42px; }
+.visual-studio :focus-visible { outline:2px solid #486043; outline-offset:3px; }
+.vs-icon { flex:none; display:block; }
+.vs-heading { min-height:64px; padding:12px 24px; display:flex; align-items:center; gap:16px; background:#fff; border-bottom:1px solid var(--line); flex:none; }
+.vs-title h1 { font-size:24px; letter-spacing:-.05em; font-weight:600; white-space:nowrap; }
+.vs-title h1 span { color:#778b60; }
+.vs-cut-label { margin-left:8px; }
+.visual-studio .vs-cut-label select { max-width:170px; min-height:36px; padding:6px 28px 6px 10px; background:var(--tint); border-color:transparent; font-size:13px; }
+.vs-history { display:flex; gap:2px; padding:2px; background:var(--tint); border-radius:9px; }
+.vs-icon-btn { width:36px; height:36px; display:grid; place-items:center; border:0; border-radius:8px; background:transparent; padding:0; flex:none; color:var(--ink-2); }
+.vs-icon-btn:hover:not(:disabled) { background:#e7eae2; color:var(--ink); }
+.vs-save-state { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-2); white-space:nowrap; }
+.vs-save-state .vs-icon { width:16px; height:16px; color:#526846; }
+.vs-save-state.is-dirty .vs-icon { stroke-width:5; color:#a06d20; }
+.visual-studio .vs-save { background:white; }
+.visual-studio .vs-export { min-height:42px; background:#252c23; border-color:#252c23; padding-inline:18px; box-shadow:0 2px 4px #18201314; }
+.vs-workspace { display:grid; grid-template-columns:minmax(0,1fr) 408px; flex:1; min-height:0; }
+.vs-preview { min-width:0; min-height:0; display:flex; flex-direction:column; background:#f3f2ee; }
+.vs-stagebar { display:flex; align-items:center; min-height:44px; gap:12px; padding:6px 24px; flex:none; }
+.vs-live-label { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:500; }
+.vs-live-label .dot { width:6px; height:6px; background:#6a8055; box-shadow:0 0 0 3px #6a80551a; }
+.vs-stage-meta { color:var(--ink-3); font-size:12px; }
+.vs-stage-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:36px; padding:7px 10px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--ink-2); font-size:13px; white-space:nowrap; }
+.vs-stage-btn .vs-icon { width:17px; height:17px; }
+.vs-stage-btn:hover,.vs-stage-btn[aria-pressed=true] { background:white; border-color:var(--line-2); color:var(--ink); }
+.vs-stage { flex:1; min-height:160px; min-width:0; margin:0 24px 16px; display:flex; align-items:center; justify-content:center; position:relative; container-type:size; overflow:hidden; border-radius:12px; background:#eae9e3; background-image:radial-gradient(#d4d2c7 0.7px,transparent 0.7px); background-size:12px 12px; }
+.vs-player { width:min(calc(100% - 32px),calc((100cqh - 16px) * var(--video-ratio))); max-height:calc(100% - 16px); border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#151915; box-shadow:0 12px 28px #29352424,0 2px 6px #29352418; }
+.vs-player video,.vs-live-frame { display:block; width:100%; height:100%; border:0; object-fit:contain; }
+.vs-loading { padding:24px; color:white; text-align:center; display:flex; flex-direction:column; gap:12px; align-items:center; font-size:14px; }
+.vs-loading-icon { font-size:40px; }
+.vs-before-badge { position:absolute; top:16px; left:16px; background:#fff; border-radius:6px; padding:6px 10px; font:12px var(--mono); }
+.vs-preparing { position:absolute; bottom:16px; background:white; padding:8px 14px; border-radius:8px; box-shadow:0 3px 12px #0001; font-size:13px; }
+/* Playback lives outside the picture, with no duplicate native scrubber. */
+.vs-transport { min-height:56px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 24px; border-block:1px solid var(--line); background:#fff; flex:none; }
+.vs-playback-controls,.vs-timing-actions { display:flex; align-items:center; gap:4px; }
+.vs-play-btn { width:40px; height:40px; border-radius:50%; background:#283025; color:white; border:1px solid #283025; display:grid; place-items:center; }
+.vs-play-btn .vs-icon { width:18px; height:18px; }
+.vs-play-btn:hover { background:#43543b; }
+.vs-play-btn .vs-icon path[d^="m9"] { fill:currentColor; stroke-width:0; }
+.vs-time { display:flex; align-items:baseline; gap:8px; margin:0 12px; white-space:nowrap; font:12px var(--mono); font-variant-numeric:tabular-nums; }
+.vs-time b { font-weight:500; color:var(--ink); font-size:14px; }
+.vs-time > span { color:var(--ink-3); }
+.vs-add-effect { margin-left:6px; background:#f4f6f0!important; border-color:#d8ddce!important; }
+.vs-add-effect .vs-icon { width:16px; }
+/* Three visible rows per page. No nested vertical scrollbar, at any density. */
+.vs-timeline { --track-label:182px; padding:8px 24px 8px; background:white; flex:none; }
+.vs-time-grid,.vs-track-row { display:grid; grid-template-columns:var(--track-label) minmax(0,1fr); gap:12px; }
+.vs-track-heading { display:flex; align-items:center; gap:9px; font-size:12px; font-weight:500; }
+.vs-track-heading small { color:var(--ink-3); font-size:11px; font-weight:400; }
+.vs-ruler { height:36px; position:relative; margin-inline:8px; }
+.vs-ticks { position:absolute; inset:0 0 12px; font:11px var(--mono); color:var(--ink-3); }
+.vs-ticks span { position:absolute; transform:translateX(-50%); }
+.vs-ticks span:first-child { transform:none; }.vs-ticks span:last-child { transform:translateX(-100%); }
+.vs-seek-track { position:absolute; height:4px; background:#e3e7dc; left:0; right:0; bottom:6px; border-radius:3px; }
+.vs-seek-track > span { display:block; background:#879d69; height:100%; border-radius:3px; }
+.vs-seek-track i { position:absolute; height:8px; width:2px; bottom:-2px; background:#616c54; }
+.vs-playhead-head { position:absolute; left:var(--playhead); bottom:1px; transform:translateX(-50%); width:12px; height:14px; border-radius:3px 3px 5px 5px; background:#435837; box-shadow:0 0 0 2px white; pointer-events:none; }
+.vs-ruler input { appearance:none; -webkit-appearance:none; position:absolute; inset:0 -8px; margin:0; width:calc(100% + 16px); height:36px; opacity:0; cursor:ew-resize; }
+.vs-ruler:focus-within { outline:2px solid #486043; outline-offset:3px; border-radius:4px; }
+.vs-tracks { display:flex; flex-direction:column; gap:4px; }
+.vs-track-row { width:100%; border:1px solid transparent; border-radius:7px; padding:2px 7px; min-height:44px; text-align:left; background:#fff; align-items:center; }
+.vs-track-row:hover { background:#f7f8f4; }.vs-track-row.selected { background:#f1f4eb; border-color:#a0ae8d; }
+.vs-track-name { display:flex; align-items:center; gap:9px; min-width:0; }
+.vs-track-name > span:last-child { min-width:0; display:flex; flex-direction:column; }
+.vs-track-name b { font-size:13px; font-weight:500; line-height:1.4; white-space:normal; }
+.vs-track-name small { font-size:11px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.vs-track-symbol { width:28px; height:28px; border-radius:7px; display:grid; place-items:center; flex:none; }
+.vs-track-symbol .vs-icon { width:15px; height:15px; }
+.tone-0 { background:#e8e5f3; color:#645381; }.tone-1 { background:#e1ecdf; color:#526b4d; }.tone-2 { background:#f5e8d8; color:#8a6435; }
+.vs-track-lane { position:relative; display:block; height:28px; border-radius:5px; background:repeating-linear-gradient(90deg,#f2f4ee 0,#f2f4ee calc(25% - 1px),#dfe3d8 calc(25% - 1px),#dfe3d8 25%); }
+.vs-clip { display:flex; align-items:center; justify-content:space-between; position:absolute; inset-block:2px; min-width:2px; border:1px solid currentColor; border-radius:5px; opacity:.8; overflow:hidden; }
+.vs-clip i { display:block; height:10px; border-left:2px solid currentColor; margin:0 4px; opacity:.5; }
+.vs-lane-playhead { position:absolute; top:-5px; bottom:-5px; width:1px; background:#435837; pointer-events:none; }
+.vs-track-row.disabled .vs-clip { opacity:.35; border-style:dashed; }.vs-track-row.needs-input .vs-track-name small { color:#8a5a0e; }
+.vs-empty-track { display:flex; align-items:center; gap:10px; width:100%; min-height:44px; border:1px dashed #cbd3c1; background:#f8faf5; padding:8px 12px; border-radius:8px; font-size:13px; }
+.vs-empty-track span { margin-left:auto; font-size:12px; color:var(--ink-3); }
+.vs-timeline-pages { display:flex; justify-content:flex-end; align-items:center; gap:4px; margin-top:6px; font-size:12px; color:var(--ink-3); }
+.vs-timeline-pages > span { margin-right:10px; }
+.vs-status { min-height:32px; padding:4px 24px 8px; font-size:12px; color:var(--ink-3); background:white; display:flex; justify-content:space-between; align-items:center; gap:10px; flex:none; }
+.vs-status:not(.has-message) { display:none; }
+.vs-text-btn { border:0; background:transparent; display:flex; align-items:center; gap:6px; padding:2px 0; min-height:24px; font-size:12px; color:var(--ink-2); }
+.vs-text-btn .vs-icon { width:14px; height:14px; }
+/* Style library: actual frames from the same renderer as the export. */
+.vs-inspector { min-width:0; min-height:0; display:flex; flex-direction:column; border-left:1px solid var(--line); background:#fff; }
+.vs-tabs { display:flex; padding:10px 18px 0; border-bottom:1px solid var(--line); min-height:52px; flex:none; gap:4px; }
+.vs-tabs button { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; min-height:42px; border:0; border-bottom:2px solid transparent; background:transparent; padding:8px 4px 12px; font-size:13px; font-weight:500; color:var(--ink-3); }
+.vs-tabs button[aria-selected=true] { border-bottom-color:#536944; color:var(--ink); }
+.vs-tabs button span { min-width:18px; border-radius:4px; background:#eef1e9; font-size:11px; padding-inline:3px; }
+.vs-sidebar-body { min-height:0; flex:1; overflow-y:auto; overscroll-behavior:contain; padding:24px; display:flex; flex-direction:column; gap:20px; scrollbar-width:thin; scrollbar-color:#c7ccbf transparent; }
+.vs-section-intro { display:flex; flex-direction:column; gap:8px; }
+.vs-section-intro h2 { font-size:30px; line-height:1.15; letter-spacing:-.045em; font-weight:600; }
+.vs-section-intro h2 em { font-family:Georgia,serif; font-weight:400; }
+.vs-section-intro p { color:var(--ink-2); font-size:14px; line-height:1.6; }
+.vs-original { min-height:48px; flex:none; display:flex; align-items:center; gap:12px; text-align:left; border:1px solid var(--line); border-radius:10px; padding:8px 14px; background:#faf9f6; }
+.vs-original > span { flex:1; display:flex; align-items:baseline; flex-wrap:wrap; gap:3px 10px; }.vs-original strong { font-size:14px; font-weight:500; }.vs-original small { font-size:12px; color:var(--ink-3); }
+.vs-original > .vs-icon { color:#69765f; }.vs-original.chosen { border-color:#6e825b; background:#f1f5eb; }
+.vs-styles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px 12px; }
+.vs-style { appearance:none; display:flex; flex-direction:column; min-width:0; text-align:left; border:0; background:transparent; padding:0; border-radius:8px; }
+.vs-style-art { width:100%; display:block; position:relative; overflow:hidden; border-radius:9px; box-shadow:0 1px 3px #19201320; outline:1px solid #1920130d; outline-offset:0; transition:outline-color .15s,transform .15s; }
+.vs-style:hover .vs-style-art { outline:2px solid #b2bca4; outline-offset:2px; }
+.vs-style.chosen .vs-style-art { outline:2px solid #647c4d; outline-offset:3px; }
+.vs-style-frame { display:block; width:100%; height:100%; border:0; pointer-events:none; }
+.vs-style-check { position:absolute; right:6px; top:6px; display:none; width:22px; height:22px; border-radius:50%; background:#fff; color:#35492a; box-shadow:0 1px 5px #0003; place-items:center; }
+.vs-style-check .vs-icon { width:15px; height:15px; stroke-width:2.5; }.chosen .vs-style-check { display:grid; }
+.vs-style-title { display:flex; justify-content:space-between; align-items:center; gap:5px; padding-top:10px; }.vs-style-title strong { font-size:14px; font-weight:600; }
+.vs-style-dot { height:7px; width:7px; border-radius:50%; border:1px solid #0002; }
+.vs-style-description { font-size:12px; color:var(--ink-3); line-height:1.4; margin-top:3px; }
+.vs-thumb-loading { height:100%; display:grid; place-items:center; font:italic 22px Georgia,serif; color:white; }
+.vs-customise { border:1px solid var(--line); border-radius:10px; background:#faf9f6; flex:none; }
+.vs-customise summary { min-height:50px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:13px; font-weight:500; list-style:none; }
+.vs-customise summary::-webkit-details-marker { display:none; }.vs-customise summary > span { display:flex; align-items:center; gap:9px; }.vs-customise .vs-icon { width:17px; height:17px; }.vs-customise[open] summary > .vs-icon { transform:rotate(180deg); }
+.vs-customise-body { display:flex; flex-direction:column; gap:16px; padding:0 14px 16px; }
+.vs-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; }.vs-toolbar label { display:flex; flex-direction:column; gap:7px; font-size:13px; }.vs-toolbar label:first-child { flex:1; }
+.vs-toolbar input[type=color] { width:44px; height:42px; border:1px solid var(--line-2); border-radius:8px; padding:5px; background:white; }
+.vs-default,.vs-enable { display:flex; align-items:center; gap:8px; font-size:13px; }.vs-default input,.vs-enable input { width:18px; height:18px; accent-color:#536944; }
+.vs-mobile-history { display:none; }
+.vs-inspector-footer { min-height:48px; flex:none; padding:6px 20px; border-top:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:8px; background:#faf9f6; }
+.visual-studio .vs-inspector-footer .btn { min-height:32px; padding:4px 8px; }
+/* Effect and export tools share the same scale as the style chooser. */
+.vs-effect-list { border:1px solid var(--line); padding:14px; border-radius:10px; }.vs-effect-list h3 { font-size:14px; margin-bottom:8px; }
+.vs-effect-row { display:flex; align-items:center; gap:6px; padding:9px 0; border-top:1px solid var(--line); }.vs-effect-row input { width:18px; height:18px; accent-color:#536944; flex:none; }
+.vs-effect-select { flex:1; min-width:0; min-height:36px; text-align:left; display:flex; flex-direction:column; gap:3px; background:transparent; border:0; padding:0 5px; }.vs-effect-select b { font-size:13px; font-weight:500; }
+.vs-mini { width:32px; height:32px; background:white; border:1px solid var(--line); border-radius:6px; font-size:18px; flex:none; }
+.vs-search input { width:100%; background:#f7f8f4!important; }
+.vs-filters { display:flex; flex-wrap:wrap; gap:6px; }.vs-filters button { min-height:32px; padding:5px 10px; border-radius:7px; border:1px solid var(--line); background:white; font-size:12px; }.vs-filters button[aria-pressed=true] { background:#35432c; border-color:#35432c; color:white; }
+.vs-effect-cards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.vs-effect-card { display:flex; flex-direction:column; gap:9px; text-align:left; border:1px solid var(--line); border-radius:11px; padding:14px; background:white; min-width:0; }.vs-effect-card:hover { background:#faf9f6; border-color:#a6b19a; box-shadow:0 2px 7px #2835230a; }.vs-effect-card strong { font-size:14px; font-weight:600; }.vs-effect-card .small { font-size:12px; line-height:1.55; }
+.vs-effect-icon { width:36px; height:36px; display:grid; place-items:center; background:#eef1e9; color:#536944; border-radius:9px; font-size:22px; }.vs-effect-tag { margin-top:auto; font-size:11px; color:var(--ink-3); padding-top:4px; }
+.vs-effect-editor { display:flex; flex-direction:column; gap:20px; }.vs-effect-editor h2 { font-size:26px; }.vs-effect-editor .vs-back { align-self:flex-start; margin-left:-12px; }.vs-effect-editor .grid2 { gap:12px; }.vs-effect-editor select { width:100%; }.vs-effect-editor .field { gap:8px; }.vs-effect-editor input[type=range] { accent-color:#536944; height:32px; }
+.vs-remove { align-self:flex-start; color:#a43f30; }.vs-input-hint { padding:12px 14px; border-radius:9px; border:1px solid #e7d7b4; background:#fbf5ea; color:#82561b; display:flex; flex-direction:column; gap:10px; font-size:13px; }.vs-needs { color:#82561b; }
+.vs-error { display:flex; align-items:center; justify-content:space-between; gap:12px; background:#fff1ed; color:#9f3425; padding:10px 24px; font-size:14px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.vs-empty { margin:24px; }.vs-caption-controls .panel { border:0; border-bottom:1px solid var(--line); border-radius:0; padding:0 0 20px; }.vs-caption-controls .grid2 { grid-template-columns:1fr; }.vs-caption-controls .seg-ctl { display:flex; flex-wrap:wrap; }
+.vs-export-summary { display:grid; grid-template-columns:1fr auto; gap:16px; background:#f5f7f1; border:1px solid var(--line); padding:20px; border-radius:10px; font-size:14px; }.vs-export-summary span { color:var(--ink-3); }.vs-export-summary b { font-weight:500; }
+.vs-wide-btn { width:100%; justify-content:space-between; text-decoration:none; }.vs-render-check { border-top:1px solid var(--line); padding-top:22px; display:flex; flex-direction:column; gap:16px; }.vs-render-check input { width:120px; }.vs-render-check .btn { align-self:flex-start; }.vs-export-ready { background:#f0f5e9; border:1px solid #d4e0c5; border-radius:10px; padding:20px; display:flex; flex-direction:column; gap:12px; }.vs-export-ready .label { color:#4d633d; }
+.vs-render-progress { display:flex; flex-direction:column; gap:12px; font-size:14px; }.vs-render-progress summary { cursor:pointer; font-size:13px; }.vs-progress-line { height:4px; border-radius:3px; background:linear-gradient(90deg,#eef1e9,#7d9265,#eef1e9); background-size:200% 100%; animation:vs-progress 2s linear infinite; }@keyframes vs-progress { to { background-position:-200% 0; } }
+.vs-focus .vs-inspector { display:none; }.vs-focus .vs-workspace { grid-template-columns:1fr; }.vs-focus .vs-status,.vs-focus .vs-timing-actions { display:none; }.vs-focus .vs-transport { justify-content:center; }
+@media(min-width:1600px) { .vs-workspace { grid-template-columns:minmax(0,1fr) 464px; }.vs-sidebar-body { padding:20px 24px; gap:18px; }.vs-style-description { font-size:12px; }.vs-stage { margin-inline:32px; }.vs-track-name b { font-size:13px; } }
+@media(max-width:1200px) and (min-width:761px) { .vs-workspace { grid-template-columns:minmax(0,1fr) 360px; }.vs-heading { padding-inline:18px; gap:12px; }.vs-save-state { display:none; }.vs-stage-meta { display:none; }.vs-sidebar-body { padding:20px; }.vs-styles { gap:16px 10px; }.vs-stagebar,.vs-transport { padding-inline:18px; }.vs-timeline { padding-inline:18px; --track-label:150px; }.vs-stage { margin-inline:18px; }.vs-time { margin-inline:5px; }.vs-playback-controls > .vs-icon-btn:not(.vs-mute) { display:none; }.vs-stage-btn { padding-inline:7px; } }
+@media(max-width:1000px) { .top { gap:8px; padding-inline:12px; }.top .select { max-width:170px; }.top .tab { padding-inline:8px; font-size:12px; }.setup-link { display:none; }.vs-title h1 { font-size:22px; }.vs-heading { gap:10px; }.vs-stage-meta { display:none; } }
+@media(max-width:900px) { .app:has(.look-view) { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); height:100dvh; overflow:hidden; }.main:has(.look-view) { overflow:hidden; min-height:0; }.app:has(.look-view) .chat { position:absolute; right:0; top:80px; bottom:0; height:auto; width:min(340px,100%); z-index:8; background:white; box-shadow:-10px 0 30px #0001; }.vs-mute { display:none; }.vs-timing-actions .vs-stage-btn { font-size:0; gap:0; }.vs-timing-actions .vs-stage-btn .vs-icon { width:20px; height:20px; } }
+@media(max-width:760px) {
+ .vs-heading { padding:10px 16px; min-height:64px; flex-wrap:wrap; gap:8px; }.vs-title { flex:1; }.vs-title h1 { font-size:21px; }.vs-cut-label { margin:0; }.visual-studio .vs-cut-label select { max-width:110px; }.vs-heading > .spacer,.vs-save-state { display:none; }.vs-history { order:4; }.vs-save { margin-left:auto; order:5; }.vs-export { order:6; }.vs-workspace { display:flex; flex-direction:column; min-height:0; }.vs-preview { flex:none; }.vs-stagebar { min-height:44px; padding:4px 16px; }.vs-stage { height:clamp(170px,30dvh,340px); flex:none; margin:0 16px 12px; min-height:0; }.vs-stage-meta { display:none; }.vs-player { width:min(calc(100% - 16px),calc((100cqh - 8px) * var(--video-ratio))); max-height:calc(100% - 8px); }
+ .vs-transport { min-height:56px; padding:8px 12px; gap:4px; }.vs-playback-controls > .vs-icon-btn:not(.vs-mute) { display:none; }.vs-time { margin:0 6px; gap:5px; }.vs-time b { font-size:12px; }.vs-time > span { font-size:11px; }.vs-mute { display:grid; width:30px; }.vs-timing-actions .btn { font-size:12px; padding:6px 9px; }.vs-timing-actions .vs-stage-btn { font-size:0; }.vs-timeline { --track-label:140px; padding:6px 12px; }.vs-ruler { height:32px; }.vs-ticks { font-size:10px; }.vs-track-heading { font-size:11px; }.vs-track-heading small { display:none; }.vs-track-row { min-height:44px; }.vs-track-symbol { display:none; }.vs-track-name b { font-size:13px; }.vs-track-name small { font-size:11px; }.vs-status { display:none; }.vs-inspector { flex:1; min-height:190px; border-left:0; border-top:1px solid var(--line); }.vs-tabs { padding-top:0; min-height:46px; }.vs-sidebar-body { padding:20px; }.vs-section-intro h2 { font-size:27px; }.vs-style-description { font-size:12px; }.vs-inspector-footer { min-height:42px; padding-inline:16px; }.vs-focus .vs-preview { flex:1; min-height:0; }.vs-focus .vs-stage { flex:1; height:auto; }
+}
+@media(max-width:480px) { .top { display:grid; grid-template-columns:auto minmax(0,1fr) auto; padding:8px 12px 0; gap:6px 8px; }.top .mark { font-size:14px; }.top .select { max-width:100%; width:100%; font-size:12px; padding:4px 6px; }.top > button[aria-haspopup=dialog],.top > .spacer { display:none; }.top > .btn { font-size:11px; padding:4px 6px; }.top .tabs { grid-column:1/-1; min-height:38px; height:38px; margin:0; overflow-y:hidden; justify-content:space-between; }.top .tab { padding:0 5px; font-size:11px; margin-bottom:0; }.vs-heading { min-height:60px; flex-wrap:nowrap; }.vs-title,.vs-heading .vs-history { display:none; }.vs-cut-label { margin-right:auto; }.vs-heading .vs-save { margin:0; }.vs-mobile-history { display:flex; gap:4px; }.vs-inspector-footer > .fine { display:none; }.vs-stage { height:25dvh; }.vs-inspector-footer .fine { font-size:11px; } }
+@media(max-height:740px) and (max-width:760px) { .vs-stage { height:160px; }.vs-heading { min-height:58px; }.vs-title,.vs-history { display:none; }.vs-heading .vs-save { order:0; }.vs-tracks,.vs-timeline-pages { display:none; }.vs-timing-actions .vs-stage-btn { display:none; }.vs-inspector { min-height:180px; } }
+@media(prefers-reduced-motion:reduce) { .visual-studio button,.vs-style-art { transition:none; }.vs-progress-line { animation:none; } }
+
+/* Keep the first choices within reach when vertical room is limited. */
+@media(max-height:850px) {
+ .vs-section-intro > .label { display:none; }
+ .vs-section-intro h2 { font-size:24px; }
+ .vs-section-intro p { font-size:13px; }
+}
+@media(max-width:760px) {
+ .vs-sidebar-body { padding:16px 20px; gap:16px; }
+ .vs-section-intro { gap:5px; }
+ .vs-section-intro > .label,.vs-section-intro > p { display:none; }
+ .vs-section-intro h2 { font-size:20px; }
+}
+@media(max-height:740px) and (max-width:760px) { .vs-section-intro { display:none; } }
+
+/* Effect controls stay outside the picture and change the actual edit. */
+.vs-preview-effects { display:flex; align-items:center; gap:12px; min-height:44px; flex:none; padding:0 24px 8px; color:var(--ink-2); font-size:12px; }
+.vs-effects-context { flex:none; font-size:11px; color:var(--ink-3); }
+.vs-preview-effect-list { display:flex; align-items:center; gap:8px; min-width:0; overflow-x:auto; padding:3px; scrollbar-width:thin; }
+.vs-preview-effect { display:flex; align-items:center; flex:none; border:1px solid var(--line-2); background:white; border-radius:8px; overflow:hidden; }
+.vs-effect-edit,.vs-effect-off { border:0; background:transparent; color:var(--ink-2); min-height:32px; }
+.vs-effect-edit { padding:5px 10px; font-size:12px; }
+.vs-effect-off { display:grid; place-items:center; width:34px; border-left:1px solid var(--line); }
+.vs-effect-off .vs-icon { width:15px; height:15px; }
+.vs-effect-edit:hover,.vs-effect-off:hover { background:var(--tint); color:var(--ink); }
+.vs-preview-effects .vs-effect-edit:focus-visible,.vs-preview-effects .vs-effect-off:focus-visible { outline-offset:-3px; }
+.vs-effect-dismissed { display:flex; align-items:center; gap:10px; flex:none; }
+.vs-effect-dismissed .vs-text-btn { min-height:32px; text-decoration:underline; text-underline-offset:3px; }
+.vs-effects-empty { white-space:nowrap; color:var(--ink-3); }
+@media(max-width:760px) {
+ .vs-preview-effects { padding:0 16px 6px; gap:8px; }
+ .vs-effect-edit,.vs-effect-off { min-height:36px; }
+ .vs-effect-off { width:36px; }
+ .vs-effect-dismissed .vs-text-btn { min-height:36px; }
+}

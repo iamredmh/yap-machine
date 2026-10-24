@@ -1,0 +1,105 @@
+{
+  "id": "glass",
+  "name": "Glass",
+  "description": "A premium gradient style: Sora headlines and Inter text over a drifting violet, blue and pink mesh, frosted glass cards and captions, the hero word glowing in mint, duotone icons, the camera softly blended in, and everything arriving out of a blur.",
+  "fonts": [
+    { "family": "Sora", "file": "fonts/glass/Sora-400.woff2", "weight": "400" },
+    { "family": "Sora", "file": "fonts/glass/Sora-700.woff2", "weight": "700" },
+    { "family": "Inter", "file": "fonts/volt/Inter-400.woff2", "weight": "400" },
+    { "family": "Inter", "file": "fonts/volt/Inter-500.woff2", "weight": "500" },
+    { "family": "Inter", "file": "fonts/volt/Inter-600.woff2", "weight": "600" },
+    { "family": "Inter", "file": "fonts/volt/Inter-700.woff2", "weight": "700" },
+    { "family": "Inter", "file": "fonts/volt/Inter-800.woff2", "weight": "800" },
+    { "family": "JetBrains Mono", "file": "fonts/shared/JetBrainsMono-400.woff2", "weight": "400" }
+  ],
+  "type": {
+    "display": { "family": "Sora", "fallback": "sans-serif", "weight": 700, "style": "normal", "tracking": -0.035, "case": "none", "metrics": "sora-700", "layout": { "match": "cap", "fit": "cap", "fitScale": 1, "measure": 1, "lineHeight": 1.2 } },
+    "accent": { "family": "Sora", "fallback": "sans-serif", "weight": 400, "style": "normal", "tracking": -0.01, "case": "none", "metrics": "sora-400", "layout": { "match": "x", "fit": "width", "fitScale": 1, "measure": null, "lineHeight": null } },
+    "body": { "family": "Inter", "fallback": "sans-serif", "weight": 500, "style": "normal", "tracking": -0.01, "case": "none", "metrics": "inter-500", "layout": { "match": "x", "fit": "width", "fitScale": 1, "measure": 38, "lineHeight": 2.7 } },
+    "label": { "family": "Inter", "fallback": "sans-serif", "weight": 700, "style": "normal", "tracking": 0.16, "case": "uppercase", "metrics": "inter-700", "layout": { "match": "cap", "fit": "width", "fitScale": 1, "measure": null, "lineHeight": null } },
+    "code": { "family": "JetBrains Mono", "fallback": "monospace", "weight": 400, "style": "normal", "tracking": 0, "case": "none", "metrics": "jetbrains-mono", "layout": { "match": "none", "fit": "width", "fitScale": 1, "measure": null, "lineHeight": null } }
+  },
+  "palette": {
+    "base": "#07061A",
+    "panel": "#110F2A",
+    "surface": "#18153A",
+    "line": "#2B2760",
+    "faint": "#5A5694",
+    "muted": "#8C88C2",
+    "text": "#FFFFFF",
+    "textSoft": "#C4C0F2",
+    "ink": "#120F2E",
+    "inkSoft": "#5F5A8F",
+    "win": "#6EF2D1",
+    "friction": "#FF7A9A",
+    "extended": { "violet": "#8B5CF6", "blue": "#3B82F6", "pink": "#EC4899", "amber": "#FBBF24" },
+    "heroRotation": ["win", "amber", "pink"]
+  },
+  "grounds": {
+    "dark": { "colour": "#07061A", "texture": null, "glows": [], "pattern": null, "vignette": "radial-gradient(ellipse 120% 90% at 50% 40%, transparent 50%, rgba(3,2,12,0.55) 100%)" },
+    "light": { "colour": "#F3F1FF", "texture": null, "glows": [], "pattern": null, "vignette": null }
+  },
+  "backdrops": [{ "kind": "mesh", "colours": ["violet", "blue", "pink"], "alpha": 0.62, "speed": 0.12, "grain": 0.22 }],
+  "signature": { "surface": "glass", "mark": "glow", "icons": "duotone", "reveal": "blur", "chrome": "none", "edge": "straight", "tilt": 0, "rough": 0, "boil": 0 },
+  "cards": {
+    "dark": { "top": "#1B1840", "fill": "#1B1840", "bottom": "#1B1840", "up": "#24205A", "up2": "#2C2870", "radius": 40, "lightCatch": 0, "shadow": { "dx": 0, "dy": 30, "blur": 60, "colour": "#000000", "alpha": 0.4 }, "ring": null },
+    "light": { "top": "#FFFFFF", "fill": "#FFFFFF", "bottom": "#FFFFFF", "up": "#F4F2FF", "up2": "#E9E6FF", "radius": 40, "lightCatch": 0, "shadow": { "dx": 0, "dy": 30, "blur": 60, "colour": "#000000", "alpha": 0.1 }, "ring": null }
+  },
+  "subtitles": {
+    "voice": "body",
+    "weight": 700,
+    "size": 50,
+    "case": "none",
+    "tracking": -0.01,
+    "colour": { "dark": "#FFFFFF", "light": "#120F2E" },
+    "outline": null,
+    "shadow": { "dark": "0 2px 18px rgba(0,0,0,0.35)", "light": null },
+    "backing": { "kind": "glass", "dark": "rgba(255,255,255,0.12)", "light": "rgba(255,255,255,0.6)" },
+    "key": { "voice": "body", "weight": 800, "style": "normal", "size": 50, "colour": "hero", "box": null },
+    "enter": "blur",
+    "laneY": 1470,
+    "words": [2, 5]
+  },
+  "composition": { "ground": "dark", "align": "center", "margin": 100, "top": 250, "gap": { "eyebrow": 36, "tagline": 26, "object": 80 } },
+  "presenter": {
+    "layouts": { "full": true, "halfBand": true, "tile": true },
+    "openOn": ["halfBand", "full"],
+    "halfBand": { "feather": 90, "rule": null },
+    "tile": { "radius": 56, "ring": { "width": 2, "colour": "rgba(255,255,255,0.4)" }, "shadow": "0 40px 80px rgba(0,0,0,0.45)" },
+    "rim": null
+  },
+  "transitions": {
+    "cut": true,
+    "ease": { "enabled": false, "dy": 40, "sink": 0.02, "frames": 14 },
+    "zoomThrough": { "enabled": false, "frames": 6 },
+    "flash": { "enabled": false, "colour": "win", "frames": 2 },
+    "blur": { "enabled": true, "frames": 14 }
+  },
+  "motion": {
+    "reveal": { "bezier": [0.16, 1, 0.3, 1], "frames": 20, "stagger": 4 },
+    "leave": [0.5, 0, 0.75, 0],
+    "glide": [0.65, 0, 0.35, 1],
+    "spring": { "w": 0.32, "z": 0.78 },
+    "punch": { "amount": 0.05, "frames": 10 },
+    "rise": 40
+  },
+  "pace": {
+    "short": { "secondsPerChange": [3, 3.5], "punchIns": "payoffs" },
+    "long": { "secondsPerChange": [6, 8] },
+    "endHoldMax": 2.5,
+    "wordsPerMinute": [150, 180]
+  },
+  "scenes": {
+    "brings": ["float"],
+    "avoid": [],
+    "beats": {
+      "hook": { "use": ["title", "talk:halfBand", "float"] },
+      "payoff": { "use": ["talk:full"] },
+      "item": { "use": ["float", "list"] },
+      "number": { "use": ["float", "stat"], "in": "blur" },
+      "point": { "use": ["talk:halfBand"] },
+      "proof": { "use": ["quote"], "in": "blur" },
+      "end": { "use": ["talk:full"] }
+    }
+  }
+}

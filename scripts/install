@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Install this checkout. System tools remain under the user's package manager.
+set -euo pipefail
+yap_root="$(cd "$(dirname "$0")/.." && pwd)"
+agent=""
+for arg in "$@"; do
+  case "$arg" in
+    --agent=*) agent="${arg#--agent=}" ;;
+    --help|-h)
+      echo 'Usage: ./scripts/install [--agent=claude-code|codex|cursor|claude-desktop|gemini]'
+      echo 'Installs locked project dependencies and builds the local editor.'
+      echo 'With --agent, also connects that agent to this checkout.'
+      exit 0 ;;
+    *) echo "Unknown option: $arg. Use --help." >&2; exit 2 ;;
+  esac
+done
+case "$agent" in
+  ''|claude-code|codex|cursor|claude-desktop|gemini) ;;
+  *) echo "Unknown agent: $agent. Use --help." >&2; exit 2 ;;
+esac
+if [[ "${OS:-}" == Windows_NT ]]; then
+  echo 'Use a Linux shell inside WSL2. Native Windows installation is not supported yet.' >&2
+  exit 1
+fi
+missing=0
+for tool in node npm uv ffmpeg ffprobe; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "Missing required tool: $tool" >&2
+    missing=1
+  fi
+done
+if [[ "$missing" == 1 ]]; then
+  echo 'Install Node.js 22.12+, uv, and FFmpeg, then run this script again.' >&2
+  if [[ "$(uname -s)" == Darwin ]]; then
+    echo 'With Homebrew: brew install node uv ffmpeg' >&2
+  else
+    echo 'Node: https://nodejs.org  uv: https://docs.astral.sh/uv/getting-started/installation/' >&2
+    echo 'On Debian/Ubuntu, FFmpeg: sudo apt install ffmpeg' >&2
+  fi
+  exit 1
+fi
+node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 12)) { console.error("Yap Machine needs Node.js 22.12 or newer. Found " + process.versions.node); process.exit(1); }'
+cd "$yap_root"
+echo 'Installing the video engine…'
+uv sync --frozen
+echo 'Installing styles and effects…'
+npm ci --prefix studio --no-fund --no-audit
+echo 'Building the editor…'
+npm ci --prefix desk --no-fund --no-audit
+npm run build --prefix desk
+if [[ -n "$agent" ]]; then
+  node desk/dist/cli/index.js setup --local --only "$agent"
+fi
+echo
+echo 'Yap Machine is installed in this folder.'
+echo 'Open the editor: ./scripts/start-desk'
+echo 'Check all tools: ./scripts/yap-machine doctor'
+echo 'Connect an agent: node desk/dist/cli/index.js setup --local --only claude-code'
+echo
+if ! .venv/bin/python -c 'import shutil; from yap.transcribe import find_model; assert shutil.which("whisper-cli") or shutil.which("whisper-cpp"); find_model()' >/dev/null 2>&1; then
+  echo 'Automatic transcription still needs whisper.cpp and a speech model.'
+  echo 'See the Transcription section in README.md to finish speech setup.'
+fi
+echo 'The first styled export may download a rendering browser if Chrome is not installed.'

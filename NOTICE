@@ -1,0 +1,41 @@
+Yap Machine's own code is MIT licensed; third-party code and fonts retain their
+own licenses. The MIT license at the repository root does not relicense the
+dependencies listed below.
+
+Yap Machine builds on ideas from:
+
+video-use — https://github.com/browser-use/video-use (MIT, Copyright (c) browser-use)
+  The phrase-packed transcript the editing agent reads, the agent-written EDL,
+  per-segment extraction with short audio fades at every cut, lossless concat
+  and two-pass loudness normalisation all follow video-use's approach.
+
+whisper.cpp — https://github.com/ggml-org/whisper.cpp (MIT), used as an external tool.
+FFmpeg — https://ffmpeg.org (LGPL/GPL), used as an external tool.
+
+Style Studio engine — https://github.com/kelano86/style-studio-engine
+  MIT, Copyright (c) 2026 kelano86. Vendored from commit 1d4f96b8ee1c95720691e05a54f510dde7a164cd.
+  Style packs, rendering primitives, scenes, typography and font assets in studio/.
+  Upstream license: studio/STYLE-STUDIO-LICENSE. Fonts retain their OFL notices.
+
+Remotion — https://www.remotion.dev
+  The renderer is installed from npm. Remotion and @remotion/player are also
+  bundled into the Desk's live-preview browser build. They use the Remotion
+  License, not MIT. The pinned 4.0.530 license permits free use by eligible
+  individuals, small for-profit organizations (up to three employees), and
+  nonprofits; other organizations require a Company License. Each user must
+  comply with the applicable dependency terms. See https://www.remotion.dev/license
+  and the exact installed license in studio/node_modules/remotion/LICENSE.md.
+  The built Desk retains copies in web-dist/licenses/.
+
+Preact — https://preactjs.com (MIT, Copyright (c) 2015-present Jason Miller).
+React, React DOM and Scheduler — https://react.dev (MIT, Meta Platforms, Inc. and affiliates).
+QR Code Generator — https://github.com/kazuhikoarase/qrcode-generator
+  (MIT, Copyright (c) 2009 Kazuhiko Arase).
+Geist Sans and Geist Mono — https://github.com/vercel/geist-font
+  (SIL Open Font License 1.1). Their exact npm-package notices are included
+  alongside the built Desk's other dependency licenses.
+
+desk/scripts/copy-licenses.mjs copies the exact installed browser dependency
+licenses and vendored Style Studio/font notices into desk/web-dist/licenses/.
+That directory and desk/NOTICE are included in the packaged Desk. Runtime
+dependencies installed by npm retain their notices in their own packages.

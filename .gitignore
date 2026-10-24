@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.egg-info/
+desk/node_modules/
+desk/dist/
+desk/web-dist/
+.evals-cache/
+evals/results/
+
+studio/node_modules/
+studio/.cache/
+
+# Local projects, credentials and generated release files.
+.env
+.env.*
+!.env.example
+.yap-desk/
+*.tgz
+dist/
+.pytest_cache/

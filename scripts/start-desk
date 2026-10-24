@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+yap_root="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
+  echo 'Usage: ./scripts/start-desk [workspace-folder] [--no-browser]'
+  echo 'Opens the local editor. Projects default to ~/Yap. Set YAP_PORT to choose a port.'
+  exit 0
+fi
+if [[ ! -x "$yap_root/.venv/bin/yap-machine" || ! -f "$yap_root/desk/dist/cli/index.js" || ! -d "$yap_root/studio/node_modules/@remotion/renderer" ]]; then
+  echo 'Run ./scripts/install in the Yap Machine folder first.' >&2
+  exit 1
+fi
+command -v node >/dev/null 2>&1 || { echo 'Node.js is missing. Run ./scripts/install to check prerequisites.' >&2; exit 1; }
+yap_home="${YAP_HOME:-$HOME/Yap}"
+if [[ $# -gt 0 && "$1" != --* ]]; then yap_home="$1"; shift; fi
+export YAP_BIN="$yap_root/.venv/bin/yap-machine"
+export PYTHONUNBUFFERED=1
+exec node "$yap_root/desk/dist/cli/index.js" open --home "$yap_home" "$@"

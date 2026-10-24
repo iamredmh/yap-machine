@@ -1,0 +1,116 @@
+{
+  "id": "volt",
+  "name": "Volt",
+  "description": "A loud creator style: Anton caps centred over flat black and a fine grid, Inter Black subtitles with the key word on an electric-yellow box, cool flat cards with a ring, a hard-edged band, snappy springs, hard punch-ins, and word-pop captions.",
+  "fonts": [
+    { "family": "Anton", "file": "fonts/volt/Anton-Regular.woff2", "weight": "100 900" },
+    { "family": "Inter", "file": "fonts/volt/Inter-400.woff2", "weight": "400" },
+    { "family": "Inter", "file": "fonts/volt/Inter-500.woff2", "weight": "500" },
+    { "family": "Inter", "file": "fonts/volt/Inter-600.woff2", "weight": "600" },
+    { "family": "Inter", "file": "fonts/volt/Inter-700.woff2", "weight": "700" },
+    { "family": "Inter", "file": "fonts/volt/Inter-800.woff2", "weight": "800" },
+    { "family": "Inter", "file": "fonts/volt/Inter-900.woff2", "weight": "900" },
+    { "family": "Inter", "file": "fonts/volt/Inter-600-Italic.woff2", "weight": "100 900", "style": "italic" },
+    { "family": "JetBrains Mono", "file": "fonts/shared/JetBrainsMono-400.woff2", "weight": "400" },
+    { "family": "JetBrains Mono", "file": "fonts/shared/JetBrainsMono-700.woff2", "weight": "700" }
+  ],
+  "type": {
+    "display": { "family": "Anton", "fallback": "sans-serif", "weight": 400, "style": "normal", "tracking": 0.01, "case": "uppercase", "metrics": "anton", "layout": { "match": "cap", "fit": "cap", "fitScale": 1.35, "measure": 1, "lineHeight": 1.1 } },
+    "accent": { "family": "Inter", "fallback": "sans-serif", "weight": 600, "style": "italic", "tracking": -0.01, "case": "none", "metrics": "inter-600-italic", "layout": { "match": "x", "fit": "width", "fitScale": 1, "measure": null, "lineHeight": null } },
+    "body": { "family": "Inter", "fallback": "sans-serif", "weight": 500, "style": "normal", "tracking": -0.01, "case": "none", "metrics": "inter-500", "layout": { "match": "x", "fit": "width", "fitScale": 1, "measure": 38, "lineHeight": 2.6 } },
+    "label": { "family": "Inter", "fallback": "sans-serif", "weight": 700, "style": "normal", "tracking": 0.02, "case": "uppercase", "metrics": "inter-700", "layout": { "match": "cap", "fit": "width", "fitScale": 1, "measure": null, "lineHeight": null } },
+    "code": { "family": "JetBrains Mono", "fallback": "monospace", "weight": 400, "style": "normal", "tracking": 0, "case": "none", "metrics": "jetbrains-mono", "layout": { "match": "none", "fit": "width", "fitScale": 1, "measure": null, "lineHeight": null } }
+  },
+  "palette": {
+    "base": "#0B0B0E",
+    "panel": "#141418",
+    "surface": "#1B1B21",
+    "line": "#2E2E36",
+    "faint": "#5C5C66",
+    "muted": "#8A8A96",
+    "text": "#FFFFFF",
+    "textSoft": "#B4B4C0",
+    "ink": "#0B0B0E",
+    "inkSoft": "#55555F",
+    "win": "#FFE600",
+    "friction": "#FF3B30",
+    "extended": { "cyan": "#00E5FF", "pink": "#FF2E88", "lime": "#B6FF00", "orange": "#FF7A00" },
+    "heroRotation": ["win", "cyan", "pink", "lime", "orange"]
+  },
+  "grounds": {
+    "dark": {
+      "colour": "#0B0B0E",
+      "texture": null,
+      "glows": [{ "x": 50, "y": 0, "w": 80, "h": 42, "colour": "hero", "alpha": 0.16 }],
+      "pattern": { "kind": "grid", "size": 72, "colour": "#FFFFFF", "alpha": 0.05 },
+      "vignette": "radial-gradient(ellipse 110% 85% at 50% 40%, transparent 55%, rgba(0,0,0,0.6) 100%)"
+    },
+    "light": {
+      "colour": "#FFFFFF",
+      "texture": null,
+      "glows": [],
+      "pattern": { "kind": "grid", "size": 72, "colour": "#000000", "alpha": 0.06 },
+      "vignette": null
+    }
+  },
+  "cards": {
+    "dark": { "top": "#1A1A20", "fill": "#1A1A20", "bottom": "#1A1A20", "up": "#25252D", "up2": "#30303A", "radius": 28, "lightCatch": 0, "shadow": { "dx": 0, "dy": 18, "blur": 36, "colour": "#000000", "alpha": 0.7 }, "ring": { "width": 2, "colour": "rgba(255,255,255,0.12)" } },
+    "light": { "top": "#F3F3F6", "fill": "#F3F3F6", "bottom": "#F3F3F6", "up": "#E4E4EA", "up2": "#D6D6DE", "radius": 28, "lightCatch": 0, "shadow": { "dx": 0, "dy": 16, "blur": 36, "colour": "#000000", "alpha": 0.12 }, "ring": { "width": 2, "colour": "rgba(0,0,0,0.10)" } }
+  },
+  "subtitles": {
+    "voice": "body",
+    "weight": 900,
+    "size": 60,
+    "case": "uppercase",
+    "tracking": -0.01,
+    "colour": { "dark": "#FFFFFF", "light": "#000000" },
+    "outline": { "width": 10, "dark": "#000000", "light": "#FFFFFF" },
+    "shadow": { "dark": "0 6px 0 rgba(0,0,0,0.85)", "light": null },
+    "backing": { "kind": "none", "dark": "", "light": "" },
+    "key": { "voice": "body", "weight": 900, "style": "normal", "size": 64, "colour": null, "box": { "colour": "hero", "radius": 12, "padX": 0.2, "padY": 0.06, "tilt": -2.5 } },
+    "enter": "pop",
+    "laneY": 1465,
+    "words": [1, 3]
+  },
+  "composition": { "ground": "dark", "align": "center", "margin": 90, "top": 250, "gap": { "eyebrow": 40, "tagline": 24, "object": 70 } },
+  "presenter": {
+    "layouts": { "full": true, "halfBand": true, "tile": true },
+    "openOn": ["full", "halfBand"],
+    "halfBand": { "feather": 0, "rule": { "width": 10, "colour": "hero" } },
+    "tile": { "radius": 44, "ring": { "width": 6, "colour": "#FFFFFF" }, "shadow": "0 18px 36px rgba(0,0,0,0.7)" },
+    "rim": null
+  },
+  "transitions": {
+    "cut": true,
+    "ease": { "enabled": false, "dy": 48, "sink": 0.02, "frames": 8 },
+    "zoomThrough": { "enabled": true, "frames": 4 },
+    "flash": { "enabled": true, "colour": "hero", "frames": 2 }
+  },
+  "motion": {
+    "reveal": { "bezier": [0.12, 1, 0.3, 1], "frames": 12, "stagger": 2 },
+    "leave": [0.7, 0, 0.9, 0.2],
+    "glide": [0.5, 0, 0.1, 1],
+    "spring": { "w": 0.5, "z": 0.3 },
+    "punch": { "amount": 0.16, "frames": 2 },
+    "rise": 90
+  },
+  "pace": {
+    "short": { "secondsPerChange": [1.5, 2], "punchIns": "every-line" },
+    "long": { "secondsPerChange": [3.5, 4.5] },
+    "endHoldMax": 1,
+    "wordsPerMinute": [180, 220]
+  },
+  "scenes": {
+    "brings": ["word-pop", "slam"],
+    "avoid": [],
+    "beats": {
+      "hook": { "use": ["title", "talk:halfBand"] },
+      "payoff": { "use": ["word-pop", "talk:full"] },
+      "item": { "use": ["list"], "in": "zoom" },
+      "number": { "use": ["slam", "stat"], "in": "flash" },
+      "point": { "use": ["talk:full"] },
+      "proof": { "use": ["quote"], "in": "zoom" },
+      "end": { "use": ["talk:full"] }
+    }
+  }
+}

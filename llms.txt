@@ -1,0 +1,59 @@
+# Yap Machine
+
+> A local video editor for people working with an agent. The agent chooses takes and writes the cut; Yap Machine syncs audio, transcribes, renders and checks it. The person uploads footage, reviews the cut, leaves notes, chooses a style and exports from a local browser interface.
+
+Repository: https://github.com/iamredmh/yap-machine
+
+## Install from source
+
+This release installs from GitHub. Do not use `npx yap-machine` or `uv tool install yap-machine`: published registry packages are not the installation route.
+
+You need local terminal and file access, as in Claude Code or Codex. A chat session without a connected local runtime cannot install or run this repository. The MCP tools handle review and handoff; editing also requires reading project files and running the local engine.
+
+1. Choose a permanent local checkout folder, outside the user's footage and outside cloud-synced storage. Reuse an existing Yap Machine checkout if one is available; do not overwrite local changes. For a new checkout:
+
+       git clone https://github.com/iamredmh/yap-machine.git
+       cd yap-machine
+
+2. Read `README.md`. The source installer needs Git, Node 22.12 or newer, npm, uv, FFmpeg and ffprobe. Captions use FFmpeg's libass filter or the installed local style renderer. uv manages the project's Python environment (Python 3.11+). Install missing system prerequisites using the user's normal package manager; do not make unrelated system changes.
+
+3. Install the engine, both JavaScript dependency sets and the browser interface, then connect the agent the user intends to use:
+
+       ./scripts/install --agent=claude-code
+
+   Replace `claude-code` with `codex`, `cursor`, `gemini` or `claude-desktop` as appropriate. Omit `--agent` to install without changing agent configuration. Registration uses the local checkout, not npm, and backs up configuration files it changes. An installation request that includes connecting the named agent authorizes that setup; report which configuration was updated. Do not register unrelated agents.
+
+   To inspect registration changes separately after installation:
+
+       node desk/dist/cli/index.js setup --local --only=claude-code --dry-run
+
+4. Check optional capabilities and their missing dependencies:
+
+       ./scripts/yap-machine doctor
+
+   Preparing new footage and speech-based quality checks need whisper.cpp and a Whisper model. Follow the doctor's instructions for missing speech tools. Review and style work on already prepared projects can run before adding the speech tools. Styled export needs Chromium; an existing Chrome installation is detected on macOS, or set `YAP_BROWSER` to a Chromium executable. Remotion may download its browser when none is provided. Person cutout effects additionally require macOS and Swift.
+
+5. Start the desk:
+
+       ./scripts/start-desk
+
+   The workspace defaults to `~/Yap`; `./scripts/start-desk /absolute/path/to/workspace` selects another folder. Open the localhost address printed by the command if the browser does not open. The desk runs in the background; `node desk/dist/cli/index.js stop` stops the default workspace (add `--home /absolute/path/to/workspace` for another workspace). Restart the agent session after registration to load its new tools and skill. The `yap_open` tool can then open the desk directly.
+
+Keep the checkout in place: the agent connection points to it. After updating an unchanged checkout from GitHub, rerun `./scripts/install` and restart the desk and agent. If local changes exist, preserve them before updating.
+
+## Run the engine
+
+Use the absolute path to `<checkout>/scripts/yap-machine` from any working directory. The installer does not add a global `yap-machine` command. Examples in the skills use `yap-machine` as shorthand for this wrapper.
+
+- Read `skill/SKILL.md` before cutting. `./scripts/yap-machine skill` prints the engine skill.
+- Read `desk/skills/yap-machine/SKILL.md` for the review tools: `yap_open`, `yap_new_project`, `yap_status`, `yap_next_batch`, `yap_reply`.
+
+The loop: init a project in the desk workspace → prep its footage → read `takes.md` and `delivery.md` → write `cuts/v1/edl.json` → run `cut v1` → inspect `qc.md` and the join sheets → fix problems → use `yap_reply` to hand it over → use `yap_next_batch` to collect review notes → make a new version. Use the desk's **Style & export** screen or the `visuals` command for styled MP4s.
+
+## Files, privacy and platform limits
+
+- Source footage is read only. Keep originals and previously reviewed cut versions; write new versions for revisions.
+- Projects and renders stay in the selected local workspace. Never add personal footage, transcripts or renders to a public repository, demo or issue.
+- Yap Machine processes video and transcribes locally. The editing agent may send the text, images or files it reads to its own provider under that agent's settings. Dependency and model installation uses network downloads.
+- The source scripts target macOS and Linux. Person cutouts require macOS. Windows users can try WSL2; that route is not yet verified.
+- For settings, effects, platform details and component licences, read `studio/README.md` and `NOTICE`.
