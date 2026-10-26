@@ -4,6 +4,7 @@ __pycache__/
 .DS_Store
 *.egg-info/
 desk/node_modules
+/node_modules/
 desk/dist/
 desk/web-dist/
 .evals-cache/

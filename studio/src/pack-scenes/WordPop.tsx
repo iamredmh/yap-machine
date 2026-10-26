@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { luminance, onColour } from '../engine/colour';
 import { expoOut, ring, spring01, tw } from '../engine/motion';
@@ -7,6 +7,7 @@ import { textWidth } from '../engine/text';
 import { EVEN, wordPopInk, wordPopKey } from '../kit/contrast';
 import { Mark } from '../kit/Mark';
 import { FullFrame, type Shoot } from '../kit/Presenter';
+import { SpokenCaptionHiddenContext } from '../kit/FootageOverlay';
 
 /** The row the words share: the frame less its 50 px sides. */
 const ROW = 980;
@@ -78,6 +79,7 @@ export const WordPop: React.FC<{ shoot: Shoot; at: number; groups: PopGroup[]; k
 }) => {
   requireScene('word-pop');
   const f = useCurrentFrame();
+  const captionsHidden=useContext(SpokenCaptionHiddenContext);
   const key = groups.flatMap((g) => g.words).find((w) => w.key);
   const P = PACK.motion.punch;
   const kp = key ? tw(f, key.at, key.at + P.frames, expoOut) : 0;
@@ -97,7 +99,7 @@ export const WordPop: React.FC<{ shoot: Shoot; at: number; groups: PopGroup[]; k
       <AbsoluteFill style={{ transform: `translate(${shake.toFixed(1)}px, ${(shake * 0.4).toFixed(1)}px)`, filter: moving ? `blur(${(7 * energy).toFixed(1)}px)` : undefined }}>
         <FullFrame shoot={shoot} at={at} k={k} crownY={crownY} zoom={1 + 2 * energy * P.amount * kp} />
       </AbsoluteFill>
-      {g && (
+      {g && !captionsHidden && (
         <div style={{ position: 'absolute', left: 50, right: 50, top: y, transform: 'translateY(-50%)', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: `0 ${Math.round(fit * 0.22)}px` }}>
           {g.words.filter((w) => f >= w.at).map((w, i) => <Pop key={w.text + w.at} w={w} f={f} size={fit} i={i} energy={energy} ink={ink} />)}
         </div>

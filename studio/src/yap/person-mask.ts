@@ -25,10 +25,28 @@ export class MaskReadiness<T> {
     if(!this.wanted.has(url))return false;
     this.decoded.set(url,value); return true;
   }
-  has(url:string):boolean { return this.wanted.has(url)&&this.decoded.has(url); }
+  wants(url:string):boolean { return this.wanted.has(url); }
+  has(url:string):boolean { return this.wants(url)&&this.decoded.has(url); }
   readiness(current:string,next:string):{visible:boolean;canAdvance:boolean} {
     const visible=this.has(current);
     return {visible,canAdvance:visible&&this.has(next)};
   }
   get size():number { return this.decoded.size; }
+}
+
+/** CSS pixel/percentage geometry expressed in the local SVG mask's unit box.
+ * Explicit canvas dimensions are supplied for fitted/banded video containers. */
+export function personMaskGeometry(size:string,position:string,width:number,height:number){
+  if(!(width>0&&height>0))throw new Error('The person cutout has invalid canvas dimensions.');
+  const pair=(value:string)=>{const parts=value.trim().split(/\s+/);return [parts[0],parts[1]??parts[0]];};
+  const length=(value:string,extent:number)=>{
+    if(!/^-?(?:\d+\.?\d*|\.\d+)(?:px|%)?$/.test(value))throw new Error('Unsupported person cutout geometry.');
+    return parseFloat(value)*(value.endsWith('%')?extent/100:1);
+  };
+  const [sw,sh]=pair(size),[px,py]=pair(position);
+  const w=length(sw,width),h=length(sh,height);
+  if(!(w>0&&h>0))throw new Error('The person cutout has invalid image dimensions.');
+  // CSS percentage positions refer to the space left after sizing the image.
+  const x=length(px,px.endsWith('%')?width-w:width),y=length(py,py.endsWith('%')?height-h:height);
+  return {x:x/width,y:y/height,width:w/width,height:h/height};
 }

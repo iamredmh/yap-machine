@@ -3,6 +3,7 @@ import { AbsoluteFill, OffthreadVideo, useCurrentFrame } from 'remotion';
 import catalog from '../../catalog.json';
 import { PACK, voiceFamily } from '../engine/style';
 import { PersonLayer, PersonMask } from './PersonLayer';
+import { FootageOverlay } from '../kit/FootageOverlay';
 import type { VisualPlan } from './Visuals';
 import { bounded, captionBlockHeight, captionGroups, captionRegion, currentCaption, footageGeometry, hookVisibility, openingText, type BrandNatConfig, type NatWord } from './brand-nat-layout';
 export type { BrandNatConfig } from './brand-nat-layout';
@@ -25,6 +26,7 @@ function FittedVideo({p,config,person=false}:{p:VisualPlan;config:BrandNatConfig
     <div style={{position:'absolute',left:g.image.x,top:g.image.y,width:g.image.width,height:g.image.height}}>
       {person?<PersonLayer p={p} videoStyle={{filter:config.finish==='G6'?'brightness(1.06) saturate(.94)':finishFilter(config.finish)}}/>:<OffthreadVideo src={p.plate} muted pauseWhenBuffering acceptableTimeShiftInSeconds={1/p.fps} style={{width:'100%',height:'100%',filter:finishFilter(config.finish)}}/>}
     </div>
+    {!person&&<FootageOverlay geometry={{width:g.rect.width,height:g.rect.height,image:g.image}}/>}
   </div>;
 }
 function Hook({p,config,behind=false}:{p:VisualPlan;config:BrandNatConfig;behind?:boolean}){

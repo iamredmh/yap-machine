@@ -5,6 +5,7 @@ import { punch as punchIn } from '../engine/motion';
 import { SIG } from '../engine/signature';
 import { FONT, packColour, PACK } from '../engine/style';
 import { tornEdge } from './rough';
+import { FootageOverlay } from './FootageOverlay';
 
 // The presenter, from the footage as shot: never faked, only cropped and scaled. Three framings: full frame, and a camera
 // band or tile set into the graphics. The band fills the frame below the graphics to the bottom edge, and the tile is a
@@ -87,6 +88,7 @@ export const FullFrame: React.FC<{ shoot: Shoot; at: number; k: number; crownY: 
   return (
     <div data-part="presenter" style={{ position: 'absolute', inset: 0, transform: `scale(${z})`, transformOrigin: `540px ${g.top + shoot.eyes * g.k}px` }}>
       <OffthreadVideo src={plateSrc(shoot.plate)} startFrom={Math.max(0, at)} muted style={{ position: 'absolute', left: g.left, top: g.top, width: g.w, height: g.h }} />
+      <FootageOverlay sourceOffset={at} geometry={{width:1080,height:1920,image:{x:g.left,y:g.top,width:g.w,height:g.h}}}/>
     </div>
   );
 };
@@ -117,6 +119,7 @@ export const HalfBand: React.FC<{ shoot: Shoot; at: number; top: number }> = ({ 
     <>
       <div data-part="presenter" style={{ position: 'absolute', left: 0, top, width: 1080, height, overflow: 'hidden', WebkitMaskImage: edge, maskImage: edge, clipPath: clip }}>
         <OffthreadVideo src={plateSrc(shoot.plate)} startFrom={Math.max(0, at)} muted style={{ position: 'absolute', left: g.left, top: g.top - top, width: g.w, height: g.h }} />
+        <FootageOverlay sourceOffset={at} geometry={{width:1080,height,image:{x:g.left,y:g.top-top,width:g.w,height:g.h}}}/>
       </div>
       {torn && (
         // the torn page's white rim and the shadow it casts on the camera below
@@ -144,6 +147,7 @@ export const Tile: React.FC<{ shoot: Shoot; at: number; x: number; y: number; w:
     <div style={{ position: 'absolute', left: x, top: y - bar, width: w, height: h + bar, transform: lean }}>
       <div data-part="presenter" style={{ position: 'absolute', left: 0, top: 0, width: w, height: h + bar, overflow: 'hidden', borderRadius: P.tile.radius, boxShadow: tileShadow, background: bar ? pal.panel : undefined }}>
         <OffthreadVideo src={plateSrc(shoot.plate)} startFrom={Math.max(0, at)} muted style={{ position: 'absolute', left: g.left - x, top: g.top - y + bar, width: g.w, height: g.h }} />
+        <div style={{position:'absolute',left:0,top:bar,width:w,height:h,overflow:'hidden'}}><FootageOverlay sourceOffset={at} geometry={{width:w,height:h,image:{x:g.left-x,y:g.top-y,width:g.w,height:g.h}}}/></div>
         {bar > 0 && (
           <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: bar, background: pal.panel, display: 'flex', alignItems: 'center', gap: 12, padding: '0 22px', boxShadow: `inset 0 -2px 0 ${pal.line}` }}>
             {['#FF5F56', '#FFBD2E', '#27C93F'].map((c) => <span key={c} style={{ width: 16, height: 16, borderRadius: SIG.surface === 'terminal' ? 0 : 8, background: c }} />)}

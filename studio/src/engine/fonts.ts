@@ -17,7 +17,7 @@ const load = (family: string, file: string, weight: string, style: string, a: nu
     weight, style, sizeAdjust: `${(a * 100).toFixed(3)}%`,
     ascentOverride: pct(REFERENCE.ascent), descentOverride: pct(REFERENCE.descent), lineGapOverride: pct(REFERENCE.lineGap),
   };
-  new FontFace(family, `url(${staticFile(file)})`, descriptors as FontFaceDescriptors)
+  return new FontFace(family, `url(${staticFile(file)})`, descriptors as FontFaceDescriptors)
     .load()
     .then((f) => { fonts.add(f); continueRender(handle); })
     .catch((e) => cancelRender(e));
@@ -30,9 +30,14 @@ style.textContent = '* { font-optical-sizing: none !important; }';
 document.head.appendChild(style);
 
 const done = new Set<string>();
+const pending: Promise<void>[] = [];
 for (const v of VOICES) {
   const family = voiceFamily(v);
   if (done.has(family)) continue;
   done.add(family);
-  for (const f of PACK.fonts.filter((x) => x.family === PACK.type[v].family)) load(family, f.file, f.weight, f.style ?? 'normal', voiceAdjust(v));
+  for (const f of PACK.fonts.filter((x) => x.family === PACK.type[v].family)) pending.push(load(family, f.file, f.weight, f.style ?? 'normal', voiceAdjust(v)));
 }
+
+// document.fonts.ready alone can resolve before these FontFace.load() calls add
+// their faces to the set. Live preview waits for the actual loading promises.
+export const fontsReady = Promise.all(pending);

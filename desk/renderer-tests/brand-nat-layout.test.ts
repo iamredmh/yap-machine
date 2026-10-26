@@ -180,7 +180,8 @@ describe('Brand Nat caption ownership', () => {
         expect(named(output, 'BrandNatCaptions')).toHaveLength(1);
         expect(named(output, 'Caption')).toHaveLength(0);
         expect(named(named(output, 'EffectView'), 'BrandNatCaptions')).toHaveLength(0);
-        expect(named(output, 'BrandNatCaptions')[0].props.activeTypes).toContain(type);
+        if(type==='count-up') expect(named(output, 'BrandNatCaptions')[0].props.activeTypes).not.toContain(type);
+        else expect(named(output, 'BrandNatCaptions')[0].props.activeTypes).toContain(type);
     });
     it.each(['b-roll-overlay', 'checklist', 'phone-mockup'])('uses a compact contrasting caption over an unknown %s background', type => {
         clock.frame = 36;

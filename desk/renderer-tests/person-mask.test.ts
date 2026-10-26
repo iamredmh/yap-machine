@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MaskReadiness, personMaskFrame, personMaskUrl, personMaskWindow } from '../../studio/src/yap/person-mask';
+import { MaskReadiness, personMaskGeometry, personMaskFrame, personMaskUrl, personMaskWindow } from '../../studio/src/yap/person-mask';
 
 describe('person mask timing', () => {
   it.each([24,25,30,60,30000/1001])('selects every exact mask frame at %s fps without floating-point repeats', fps => {
@@ -63,5 +63,25 @@ describe('decoded masks across playback and seeks', () => {
     expect(cache.has(old)).toBe(false);
     expect(cache.has(personMaskUrl(fresh,42))).toBe(false);
     expect(cache.size).toBe(0);
+  });
+});
+
+describe('SVG mask geometry', () => {
+  it('keeps a default mask relative to its local video box at any canvas size', () => {
+    for(const [w,h] of [[540,960],[960,540],[400,400]])
+      expect(personMaskGeometry('100% 100%','0 0',w,h)).toEqual({x:0,y:0,width:1,height:1});
+  });
+  it('preserves fitted pixel offsets, cropped overflow, and a local band canvas', () => {
+    expect(personMaskGeometry('270px 480px','135px 100px',540,960)).toEqual({x:.25,y:100/960,width:.5,height:.5});
+    expect(personMaskGeometry('800px 600px','-200px -100px',400,400)).toEqual({x:-.5,y:-.25,width:2,height:1.5});
+    expect(personMaskGeometry('200px 400px','100px 0px',400,400)).toEqual({x:.25,y:0,width:.5,height:1});
+  });
+  it('matches CSS percentage positioning in the remaining space', () => {
+    expect(personMaskGeometry('50% 50%','50% 100%',400,600)).toEqual({x:.25,y:.5,width:.5,height:.5});
+  });
+  it('fails clearly on geometry that cannot match the video', () => {
+    expect(()=>personMaskGeometry('0px 100px','0 0',400,400)).toThrow('invalid image');
+    expect(()=>personMaskGeometry('cover','0 0',400,400)).toThrow('Unsupported');
+    expect(()=>personMaskGeometry('100% 100%','0 0',0,400)).toThrow('invalid canvas');
   });
 });
