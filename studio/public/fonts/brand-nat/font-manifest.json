@@ -8,8 +8,10 @@
     "license_file": "InterTight-OFL.txt",
     "license_source": "https://raw.githubusercontent.com/google/fonts/main/ofl/intertight/OFL.txt",
     "license_retrieved": "2026-10-26",
-    "license_sha256": "50240ab035cf1b6b3307940235481d515c4b6de3ab1fa843dbe59e7892cb9d58",
-    "metrics_note": "Inter Tight is variable; advance metrics were generated at wght800. Instrument Serif is static italic400."
+    "license_sha256": "73aeb48eba2c48bb73c2b5a1718df9e0968b7f1f1f7bfd8e02cbd748766dd921",
+    "metrics_note": "Inter Tight is variable; advance metrics were generated at wght800. Instrument Serif is static italic400.",
+    "license_source_sha256": "50240ab035cf1b6b3307940235481d515c4b6de3ab1fa843dbe59e7892cb9d58",
+    "license_normalization": "Trailing whitespace removed; full license text retained."
   },
   {
     "file": "InstrumentSerif-400-italic.woff2",
@@ -20,7 +22,9 @@
     "license_file": "InstrumentSerif-OFL.txt",
     "license_source": "https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentserif/OFL.txt",
     "license_retrieved": "2026-10-26",
-    "license_sha256": "129ed7618959716959f2941fdd5b49e0ad6e6c1d78726761786a00253d865521",
-    "metrics_note": "Inter Tight is variable; advance metrics were generated at wght800. Instrument Serif is static italic400."
+    "license_sha256": "b6b2292aa580937fb63796878d65a027a27f8c3db2d97601d0c34d9031f4ca17",
+    "metrics_note": "Inter Tight is variable; advance metrics were generated at wght800. Instrument Serif is static italic400.",
+    "license_source_sha256": "129ed7618959716959f2941fdd5b49e0ad6e6c1d78726761786a00253d865521",
+    "license_normalization": "Trailing whitespace removed; full license text retained."
   }
 ]
