@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -110,6 +111,12 @@ def validate(project: Project, timeline: dict, config: dict) -> dict:
             raise YapError(f"{types[e['type']]['name']} runs past the end of the cut")
         if not isinstance(e.get("text", ""), str) or len(e.get("text", "")) > 180:
             raise YapError("Effect text must be at most 180 characters")
+        if "textSize" in e or e["type"] == "text-behind-person":
+            e["textSize"] = finite(e.get("textSize", .16), "Text size", .06, .3)
+        if "textY" in e or e["type"] == "text-behind-person":
+            e["textY"] = finite(e.get("textY", .3), "Text position", .1, .85)
+        if e["type"] == "text-behind-person" and e.get("enabled", True) and not e.get("text", "").strip():
+            raise YapError("Add the words you want to place behind you")
         items = e.get("items", [])
         if not isinstance(items, list) or len(items) > 8 or any(not isinstance(x, str) or not x.strip() or len(x) > 80 for x in items):
             raise YapError("Use up to eight short, nonempty checklist items or headlines")
@@ -120,6 +127,8 @@ def validate(project: Project, timeline: dict, config: dict) -> dict:
             finite(value, "Chart value", -1e12, 1e12)
         if e["type"] == "growth-curve" and e.get("enabled", True) and len(values) < 2:
             raise YapError("Add at least two real values for the growth curve")
+        if e["type"] == "count-up" and e.get("enabled", True) and len(values) != 2:
+            raise YapError("Count up needs exactly two numbers: a starting value and your total")
         if e["type"] in {"checklist", "checklist-pop", "headline-storm"} and e.get("enabled", True) and not items:
             raise YapError("Add the words you want this effect to show")
         if types[e["type"]]["asset"] and e.get("enabled", True):
@@ -186,12 +195,29 @@ def face_measurements(plate: Path, width: int, height: int) -> dict:
             "chin": min(height, y + fh * 1.12), "tone": {"chest": tone}}
 
 
+def person_matte_capability() -> dict:
+    """Report native Vision support without starting a render or installing tools."""
+    if sys.platform != "darwin":
+        return {"available": False, "reason": "Automatic person cutouts need macOS 12 or later. Disable cutout effects to export on this computer; other effects and styles work here."}
+    # VNGeneratePersonSegmentationRequest was introduced in macOS 12.
+    version = platform.mac_ver()[0]
+    if not version or int(version.split('.')[0]) < 12:
+        return {"available": False, "reason": "Automatic person cutouts need macOS 12 or later. Update macOS or disable cutout effects to export."}
+    try:
+        # /usr/bin/swiftc is also present as a stub before the tools are installed.
+        tools = subprocess.run(["/usr/bin/xcrun", "--find", "swiftc"], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        tools = None
+    if tools is None or tools.returncode != 0:
+        return {"available": False, "reason": "Automatic person cutouts need Apple's Command Line Tools. Run xcode-select --install, then reopen Yap Machine."}
+    return {"available": True, "reason": None}
+
+
 def prepare_matte(plate: Path, work: Path, fps: float) -> dict:
     """Native, local person segmentation. Cache belongs to this immutable plate."""
-    if sys.platform != "darwin":
-        raise YapError("Cutout effects currently need macOS person segmentation; styles and other effects work here.")
-    if not shutil.which("swiftc"):
-        raise YapError("Person cutouts need Apple's command-line tools. Run xcode-select --install.")
+    capability = person_matte_capability()
+    if not capability['available']:
+        raise YapError(capability['reason'])
     renderer = studio_dir()
     source = renderer / "person-mask.swift"
     cache = work.parent / "person-masks"
@@ -315,8 +341,8 @@ def preview_source(project: Project, version: str, matte: bool = False) -> dict:
         plan['cutBoundaries'] = [s['out_start'] for s in timeline['segments'][1:]]
         from .media import probe
         plan['assetDurations'] = {}
-        for asset in (project.root / 'uploads').glob('visual-*'):
-            if asset.suffix.lower() in {'.mp4', '.mov', '.webm', '.m4v'}:
+        for asset in (project.root / 'uploads').glob('*'):
+            if asset.is_file() and asset.resolve().is_relative_to(project.root / 'uploads') and asset.suffix.lower() in {'.mp4', '.mov', '.webm', '.m4v'}:
                 try:
                     plan['assetDurations'][str(asset.relative_to(project.root))] = probe(asset)['duration']
                 except YapError:

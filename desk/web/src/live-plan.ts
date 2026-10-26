@@ -16,11 +16,17 @@ export function livePlan(source: any, settings: any, project: string, origin: st
             return false;
         if (e.type === 'growth-curve' && (!Array.isArray(e.values) || e.values.length < 2 || !e.values.every(Number.isFinite)))
             return false;
+        if (e.type === 'count-up' && (!Array.isArray(e.values) || e.values.length !== 2 || !e.values.every((v: number) => Number.isFinite(v) && Math.abs(v) <= 1e12)))
+            return false;
+        if (e.type === 'text-behind-person' && (!e.text?.trim()
+            || (e.textSize !== undefined && (!Number.isFinite(e.textSize) || e.textSize < .06 || e.textSize > .3))
+            || (e.textY !== undefined && (!Number.isFinite(e.textY) || e.textY < .1 || e.textY > .85))))
+            return false;
         if (['b-roll-overlay', 'green-screen'].includes(e.type) && !e.asset)
             return false;
         if (e.type === 'zoom-through-cut' && !(source.cutBoundaries ?? []).some((t: number) => t >= e.at && t < e.at + e.duration))
             return false;
-        if (['frame-escape', 'studio-reveal', 'paper-cutout', 'dolly-zoom', 'magazine-cover', 'green-screen'].includes(e.type) && !source.mask)
+        if (['frame-escape', 'studio-reveal', 'paper-cutout', 'dolly-zoom', 'magazine-cover', 'green-screen', 'text-behind-person'].includes(e.type) && !source.mask)
             return false;
         return true;
     }).map((e: any) => ({ ...e,

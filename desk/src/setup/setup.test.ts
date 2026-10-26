@@ -55,6 +55,34 @@ describe("source setup in an isolated home", () => {
     await expect(access(join(env.home, ".codex", "config.toml"))).rejects.toThrow();
   });
 
+  it("binds a custom workspace in JSON and TOML launches and remains idempotent", async () => {
+    const workspace = join(temp, "My video projects");
+    const opts = { local: true, only: ["codex", "cursor"] as const, workspace };
+    const first = await setup(env, { ...opts, only: [...opts.only] });
+    expect(first.every(result => result.status === "added")).toBe(true);
+    const json = JSON.parse(await readFile(join(env.home, ".cursor", "mcp.json"), "utf8"));
+    expect(json.mcpServers["yap-machine"].args).toEqual([env.cliFile, "mcp", "--home", workspace]);
+    const toml = await readFile(join(env.home, ".codex", "config.toml"), "utf8");
+    expect(toml).toContain(`"--home", ${JSON.stringify(workspace)}`);
+    const skill = await readFile(join(env.home, ".codex", "skills", "yap-machine", "SKILL.md"), "utf8");
+    expect(skill).toContain(`'--home' '${workspace}'`);
+    const second = await setup(env, { ...opts, only: [...opts.only] });
+    expect(second.every(result => result.status === "already")).toBe(true);
+  });
+
+  it("previews rebinding Claude to a different workspace without changing its registration", async () => {
+    const calls: string[][] = [];
+    const workspace = join(temp, "New workspace");
+    const claude = { ...env, which: async () => true, exec: async (_cmd: string, args: string[]) => {
+      calls.push(args);
+      return { code: 0, out: `Command: ${process.execPath}\nArgs: ${env.cliFile} mcp --home /old\n` };
+    } };
+    const result = await setup(claude, { local: true, workspace, only: ["claude-code"], dryRun: true });
+    expect(result[0].status).toBe("would-add");
+    expect(result[0].detail).toContain(`'--home' '${workspace}'`);
+    expect(calls).toEqual([["mcp", "get", "yap-machine"]]);
+  });
+
   it("previews a Claude npm-to-local migration without running its mutating CLI commands", async () => {
     const calls: string[][] = [];
     const claude = { ...env, which: async (cmd: string) => cmd === "claude", exec: async (_cmd: string, args: string[]) => { calls.push(args); return { code: 0, out: "Command: npx\nArgs: -y yap-machine mcp\n" }; } };

@@ -1,9 +1,10 @@
 import React from 'react';
-import { AbsoluteFill, Audio, Freeze, Img, Loop, OffthreadVideo, Sequence, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Freeze, Img, Loop, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from 'remotion';
 import { PACK, HERO, voiceFamily } from '../engine/style';
 import { Reel } from '../reel/Reel';
 import { checkPlan, type ReelPlan, type Shot } from '../reel/plan';
 import type { Shoot } from '../kit/Presenter';
+import { countUpSize, countUpText, effectEnvelope } from './effect-math';
 type Word = {
     text: string;
     start: number;
@@ -16,6 +17,8 @@ export type Effect = {
     duration: number;
     strength: number;
     text?: string;
+    textSize?: number;
+    textY?: number;
     items?: string[];
     values?: number[];
     asset?: string;
@@ -135,8 +138,9 @@ function Asset({ e, p }: {
         return <Img src={e.asset} style={{ ...fill, width: '100%', height: '100%', objectFit: 'cover' }}/>;
     return <Sequence from={Math.round(e.at * p.fps)} layout="none"><Loop durationInFrames={Math.max(1, Math.round((e.assetDuration ?? e.duration) * p.fps))}><OffthreadVideo src={e.asset} muted style={{ ...fill, width: '100%', height: '100%', objectFit: 'cover' }}/></Loop></Sequence>;
 }
-function Caption({ p }: {
+function Caption({ p, y }: {
     p: VisualPlan;
+    y?: number;
 }) {
     const t = useCurrentFrame() / p.fps;
     const cs=p.captionStyle;
@@ -148,7 +152,7 @@ function Caption({ p }: {
     const family=cs?.font.replace(/\s+(ExtraBold|SemiBold|Bold|Medium|Regular)$/,'');
     const weight=cs?(/ExtraBold/.test(cs.font)?800:/SemiBold/.test(cs.font)?600:/Bold/.test(cs.font)?700:/Medium/.test(cs.font)?500:400):800;
     const active=cs?(cs.highlight?cs.active:undefined):accent;
-    return <div style={{ position: 'absolute', bottom: `${cs?(1-cs.y)*100:12}%`, left: '8%', right: '8%', textAlign: 'center', fontFamily: family??(p.original ? 'Inter, sans-serif' : voiceFamily('body')), fontSize: u * (cs?.size??.065), fontWeight: weight, lineHeight: 1.12, color: cs?.color??'#fff', textShadow: `0 2px ${u*(cs?.shadow??.004)}px #000`, WebkitTextStroke: `${u * (cs?.outline??.002)}px #000`, textTransform: (cs?cs.case==='upper':PACK.subtitles.case==='uppercase') ? 'uppercase' : 'none' }}>
+    return <div style={{ position: 'absolute', bottom: `${(1 - (y ?? cs?.y ?? .88)) * 100}%`, left: '8%', right: '8%', textAlign: 'center', fontFamily: family??(p.original ? 'Inter, sans-serif' : voiceFamily('body')), fontSize: u * (cs?.size??.065), fontWeight: weight, lineHeight: 1.12, color: cs?.color??'#fff', textShadow: `0 2px ${u*(cs?.shadow??.004)}px #000`, WebkitTextStroke: `${u * (cs?.outline??.002)}px #000`, textTransform: (cs?cs.case==='upper':PACK.subtitles.case==='uppercase') ? 'uppercase' : 'none' }}>
     {tr ? tr.text : g!.map((w, i) => <React.Fragment key={i}><span style={{ color: t >= w.start && t < w.end ? active : undefined }}>{w.text}</span>{' '}</React.Fragment>)}
   </div>;
 }
@@ -161,13 +165,19 @@ function EffectView({ e, p, children }: {
     const u = Math.min(p.width, p.height), W = p.width, H = p.height;
     const accent = p.accent ?? HERO, ink = PACK.palette.text, ground = PACK.grounds[PACK.composition.ground].colour;
     const motion = p.motion === 'subtle' ? .6 : p.motion === 'bold' ? 1.25 : 1;
-    const pop = spring({ frame: Math.max(0, Math.round(local * p.fps)), fps: p.fps, config: { damping: 15, stiffness: 200 } });
-    const end = smooth((e.duration - local) / .18), enter = Math.min(1, pop) * end;
+    const { enter, exit: end } = effectEnvelope(local, e.duration);
     const card: React.CSSProperties = { background: PACK.id === 'glass' ? '#ffffff24' : PACK.id === 'ledger' || PACK.id === 'sketch' || PACK.id === 'pop' ? '#fff' : PACK.palette.panel, color: PACK.id === 'ledger' || PACK.id === 'sketch' || PACK.id === 'pop' ? '#111' : ink, border: PACK.id === 'pop' ? `${u * .006}px solid #111` : `${Math.max(1, u * .002)}px solid ${PACK.palette.line}`, borderRadius: PACK.id === 'terminal' ? 0 : u * .018, boxShadow: PACK.id === 'pop' ? `${u * .012}px ${u * .012}px 0 #111` : `0 ${u * .02}px ${u * .05}px #0004`, backdropFilter: PACK.id === 'glass' ? 'blur(20px)' : undefined };
     const textStyle: React.CSSProperties = { fontFamily: voiceFamily('display'), fontSize: u * .054, lineHeight: 1.1, overflowWrap: 'anywhere' };
     const labelled = (body: React.ReactNode) => <>{children}{body}</>;
     const zoom = (amount: number) => <AbsoluteFill style={{ transform: `scale(${1 + amount * e.strength * motion})`, transformOrigin: `50% ${p.shoot.eyes / p.shoot.height * 100}%` }}>{children}</AbsoluteFill>;
     const items = e.items ?? [];
+    if (e.type === 'text-behind-person')
+        return <><Raw p={p}/><div style={{ position: 'absolute', top: `${(e.textY ?? .3) * 100}%`, left: '5%', right: '5%', transform: `translateY(-50%) scale(${.96 + .04 * enter})`, opacity: enter, color: accent, fontFamily: voiceFamily('display'), fontSize: u * (e.textSize ?? .16), fontWeight: 900, letterSpacing: '-.04em', lineHeight: .94, textAlign: 'center', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap', textShadow: `0 ${u * .003}px ${u * .012}px #0003` }}>{e.text}</div><Person p={p}/></>;
+    if (e.type === 'count-up') {
+        const [start, target] = e.values ?? [0, 0];
+        const number = countUpText(start, target, local, e.duration);
+        return labelled(<div style={{ position: 'absolute', left: '9%', right: '9%', bottom: '26%', ...card, padding: `${u * .035}px ${u * .045}px`, textAlign: 'center', transform: `translateY(${(1 - enter) * u * .04}px)`, opacity: enter }}><div style={{ color: card.color, fontFamily: voiceFamily('display'), fontSize: countUpSize(start, target, u), fontWeight: 800, fontVariantNumeric: 'tabular-nums', lineHeight: 1.05, whiteSpace: 'nowrap' }}>{number}</div>{e.text && <div style={{ ...textStyle, fontFamily: voiceFamily('body'), fontSize: u * .036, marginTop: u * .016 }}>{e.text}</div>}</div>);
+    }
     if (e.type === 'snap-zoom')
         return zoom(.17 * smooth(local / .08) * smooth((e.duration - local) / .12));
     if (e.type === 'zoom-through-cut') {
@@ -191,7 +201,7 @@ function EffectView({ e, p, children }: {
         const rows = <div style={{ ...card, ...textStyle, padding: u * .045, width: full ? '82%' : '47%', position: 'absolute', left: full ? '9%' : '4%', top: full ? '14%' : '6%', transform: `translateY(${(1 - enter) * u * .06}px)`, opacity: enter, fontSize: u * (full ? .052 : .036) }}>
       <div style={{ fontFamily: voiceFamily('code'), fontSize: u * .023, color: accent, marginBottom: u * .025 }}>{complete} / {items.length}</div>
       {e.text && <div style={{ marginBottom: u * .03, fontSize: u * .06 }}>{e.text}</div>}
-      {items.map((s, i) => <div key={i} style={{ display: 'flex', gap: u * .02, marginTop: u * .023, opacity: complete > i ? 1 : .6 }}><span style={{ color: accent }}>{complete > i ? '☑' : '□'}</span><span>{s}</span></div>)}
+      {items.map((s, i) => <div key={i} style={{ display: 'flex', gap: u * .02, marginTop: u * .023, opacity: complete > i ? 1 : .6 }}><span aria-hidden="true" style={{ color: accent, display: 'inline-flex', flex: '0 0 1.1em', width: '1.1em', height: '1.1em', alignItems: 'center', justifyContent: 'center' }}><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/>{complete > i && <path d="m7 12 3 3 7-7"/>}</svg></span><span>{s}</span></div>)}
     </div>;
         return full ? <><Backdrop accent={accent}/>{rows}</> : labelled(rows);
     }
@@ -210,10 +220,10 @@ function EffectView({ e, p, children }: {
         const vs = e.values ?? [], lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
         const points = vs.map((v, i) => `${100 + i / (vs.length - 1) * 800},${650 - (v - lo) / span * 400}`).join(' ');
         return <><Backdrop accent={accent} dark/><div style={{ position: 'absolute', top: '7%', left: '7%', right: '7%', ...textStyle, color: '#fff', fontSize: u * .07 }}>{e.text || 'Growth'}</div>
-      <svg viewBox="0 0 1000 850" style={{ position: 'absolute', inset: '14% 3% 8%', width: '94%', height: '78%' }}><path d="M100 200 V680 H920" fill="none" stroke="#ffffff44" strokeWidth="2"/>
+      <svg viewBox="0 0 1000 850" style={{ position: 'absolute', inset: '14% 3% 21%', width: '94%', height: '65%' }}><path d="M100 200 V680 H920" fill="none" stroke="#ffffff44" strokeWidth="2"/>
         <polyline points={points} pathLength={1} fill="none" stroke={accent} strokeWidth="9" strokeLinejoin="round" strokeDasharray="1" strokeDashoffset={1 - smooth(progress * 1.7)}/>
         {vs.map((v, i) => <g key={i} opacity={progress >= i / (vs.length + 1) ? 1 : 0}><circle cx={100 + i / (vs.length - 1) * 800} cy={650 - (v - lo) / span * 400} r="8" fill={accent}/><text x={100 + i / (vs.length - 1) * 800} y={620 - (v - lo) / span * 400} textAnchor="middle" fill="white" fontSize="30">{v}</text></g>)}
-      </svg><div style={{ position: 'absolute', right: '7%', top: '18%', width: '24%', height: '22%', borderRadius: '50%', overflow: 'hidden', border: `${u * .004}px solid white` }}><Raw p={p}/></div></>;
+      </svg><div style={{ position: 'absolute', right: '7%', top: '14%', width: '24%', height: W * .24, borderRadius: '50%', overflow: 'hidden', border: `${u * .004}px solid white` }}><Raw p={p}/></div></>;
     }
     if (e.type === 'zoom-portal') {
         const size = u * (.25 + 1.4 * smooth(progress));
@@ -250,23 +260,38 @@ function EffectView({ e, p, children }: {
 export const Visuals: React.FC<VisualPlan> = (p) => {
     const f = useCurrentFrame(), { width: W, height: H } = useVideoConfig(), t = f / p.fps;
     const portrait = H / W > 1.6;
+    const active = p.effects.filter(e => t >= e.at && t < e.at + e.duration);
+    // Replacements discard the original caption tree; large overlays can cover
+    // it. Render one readable lane above those pictures, in preview and export.
+    const replacementCaptions = new Set(['b-roll-overlay', 'frame-escape', 'paper-cutout', 'green-screen', 'dolly-zoom', 'studio-reveal', 'magazine-cover', 'text-behind-person', 'growth-curve', 'checklist']);
+    const overlayCaptions = new Set(['count-up', 'zoom-portal', 'liquid-glass', 'frame-break']);
+    const fixedCaptions = active.some(e => replacementCaptions.has(e.type) || overlayCaptions.has(e.type)
+        || (p.original && ['snap-zoom', 'digital-zoom', 'zoom-through-cut'].includes(e.type)));
+    let captionY = p.captionStyle?.y ?? .88;
+    // Reserve space for the bottom-right speaker inset and for central cards.
+    // Honour a custom lane when it already clears the effect's content.
+    if (active.some(e => e.type === 'count-up') && captionY > .47 && captionY < .84) captionY = .9;
+    if (active.some(e => e.type === 'growth-curve' || e.type === 'checklist')) captionY = Math.max(captionY, .9);
+    if (active.some(e => e.type === 'b-roll-overlay')) captionY = Math.min(captionY, .59);
     let picture: React.ReactNode;
     if (!p.original && portrait) {
         const plan = reelPlan(p);
+        if (fixedCaptions) {
+            plan.captions = [];
+            // Word-pop is another spoken-caption track. Its centre words would
+            // duplicate the rescued lane (and can be hidden under the card).
+            plan.shots = plan.shots.map(shot => shot.scene === 'word-pop'
+                ? { ...shot, scene: 'talk', props: { layout: 'full' } } : shot);
+        }
         picture = <div style={{ position: 'absolute', left: 0, top: 0, width: 1080, height: 1920, transform: `scale(${W / 1080},${H / 1920})`, transformOrigin: '0 0' }}><Reel {...plan}/></div>;
     }
     else
-        picture = <><Raw p={p}/><Caption p={p}/></>;
-    const replacementCaptions = new Set(['b-roll-overlay', 'frame-escape', 'paper-cutout', 'green-screen', 'dolly-zoom', 'studio-reveal', 'magazine-cover']);
-    for (const e of p.effects)
-        if (t >= e.at && t < e.at + e.duration) {
-            picture = <EffectView key={e.id} e={e} p={p}>{picture}</EffectView>;
-            if (replacementCaptions.has(e.type))
-                picture = <>{picture}<Caption p={p}/></>;
-        }
-    // Layout effects carry captions inside their video; picture replacements
-    // restore the caption lane. Name cards stay above the final picture.
-    return <AbsoluteFill style={{ background: '#101016', overflow: 'hidden' }}>{picture}
+        picture = <><Raw p={p}/>{!fixedCaptions && <Caption p={p}/>}</>;
+    for (const e of active)
+        picture = <EffectView key={e.id} e={e} p={p}>{picture}</EffectView>;
+    // Phone/chat layouts carry their normal captions inside the video. Rescued
+    // lanes stay above all effects, so later cards cannot hide the spoken words.
+    return <AbsoluteFill style={{ background: '#101016', overflow: 'hidden' }}>{picture}{fixedCaptions && <Caption p={p} y={captionY}/>}
     {p.thirds.filter(n => t >= n.at && t < n.at + (n.duration ?? 4.5)).map((n, i) => <div key={i} style={{ position: 'absolute', left: '6%', bottom: '23%', background: '#fff', color: '#171717', borderLeft: `${Math.max(3, W * .006)}px solid ${p.accent ?? HERO}`, padding: `${W * .015}px ${W * .025}px`, borderRadius: W * .008, boxShadow: '0 4px 20px #0002', fontFamily: voiceFamily('body'), maxWidth: '75%' }}><strong style={{ display: 'block', fontSize: Math.min(W, H) * .04 }}>{n.name}</strong><span style={{ fontSize: Math.min(W, H) * .027 }}>{n.title}</span></div>)}
     <Audio src={p.plate}/>
   </AbsoluteFill>;

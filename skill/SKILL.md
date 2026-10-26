@@ -16,7 +16,8 @@ the local engine and desk; it does not install a global `yap-machine` executable
 In the command examples below, replace `yap-machine` with the absolute path to
 `<checkout>/scripts/yap-machine`. Use that wrapper from any working directory.
 If an installed copy of this skill includes a local runtime section, use the
-checkout and engine paths recorded there. Keep projects outside the checkout.
+checkout and engine paths recorded there. Keep projects outside the checkout. The default
+desk workspace is `~/Yap`; use the connected workspace instead when one is configured.
 
 The agent needs local file and terminal access to edit. Video processing and
 transcription run locally; files the agent reads may be sent to its provider
@@ -26,8 +27,8 @@ under the agent's settings. Keep footage and transcripts out of public repositor
 
 1. **Set up** (once per footage folder). Keep the project off cloud-synced drives.
    ```bash
-   yap-machine init ~/yap/<name> --footage "<folder of raw footage>" [--exclude "test-footage/*"]
-   yap-machine prep -p ~/yap/<name>
+   yap-machine init ~/Yap/<name> --footage "<folder of raw footage>" [--exclude "test-footage/*"]
+   yap-machine prep -p ~/Yap/<name>
    ```
    `prep` syncs a separate mic to the camera, transcribes locally (whisper.cpp),
    and writes `takes.md`.
@@ -52,7 +53,7 @@ under the agent's settings. Keep footage and transcripts out of public repositor
 
 3. **Write `cuts/v1/edl.json`** (see format below). Then:
    ```bash
-   yap-machine cut v1 -p ~/yap/<name>        # resolve + render + check
+   yap-machine cut v1 -p ~/Yap/<name>        # resolve + render + check
    ```
    Use `yap-machine render v1 --draft` for a fast 540p look while iterating.
 
@@ -95,7 +96,7 @@ under the agent's settings. Keep footage and transcripts out of public repositor
 If they say "make it feel like this one", measure it instead of guessing:
 
 ```bash
-yap-machine reference ~/Movies/their-favourite.mp4 --against v1 -p ~/yap/<name>
+yap-machine reference ~/Movies/their-favourite.mp4 --against v1 -p ~/Yap/<name>
 ```
 
 `references/<name>.md` says how the reference cuts (cuts a minute, typical shot),
@@ -110,7 +111,7 @@ reference is used in the edit. Apply only what the brief asks for.
 ## Posting kit
 
 ```bash
-yap-machine kit v2 -p ~/yap/<name>     # → cuts/v2/kit/
+yap-machine kit v2 -p ~/Yap/<name>     # → cuts/v2/kit/
 ```
 
 `facts.md` lists the beats with timecodes; `transcript.txt` is the cut as timecoded
@@ -127,7 +128,7 @@ Shorts are cut **from an approved long cut**, never from raw footage, so
 every fix the user made to the long cut carries over.
 
 ```bash
-yap-machine shorts v2 -p ~/yap/<name>        # writes cuts/v2/shorts.md: the long cut's ranges, lengths, openers
+yap-machine shorts v2 -p ~/Yap/<name>        # writes cuts/v2/shorts.md: the long cut's ranges, lengths, openers
 ```
 
 Write each short as `cuts/v2/shorts/s1/edl.json` (s2, s3, …):
@@ -142,7 +143,7 @@ Write each short as `cuts/v2/shorts/s1/edl.json` (s2, s3, …):
 }
 ```
 
-Then `yap-machine cut v2.s1 -p ~/yap/<name>` → `renders/v2.s1.mp4`.
+Then `yap-machine cut v2.s1 -p ~/Yap/<name>` → `renders/v2.s1.mp4`.
 
 - 30–90 seconds, **one point per short**. Open on the strongest line, not the
   long cut's warm-up. Reordering is fine if it still reads as one thought.
@@ -263,7 +264,7 @@ taking a suggestion.
 ## Styles and timed effects
 
 Once the cut is resolved, save `visuals.json` beside its EDL. In the desk,
-**Style & export** offers six Style Studio packs and all 20 timed effects. The editor
+**Style & export** offers six Style Studio packs and 22 timed effects. The editor
 can choose an accent and motion strength, place effects on transcript lines,
 add text/items/real chart values or supporting assets, save, preview and export.
 
@@ -285,8 +286,32 @@ zoom-through-cut must span an edit boundary.
 Text belongs to the creator: never fabricate statistics, quotes or chart
 values to fill a design. Upload required image/video assets inside the project
 and reference their relative path. Checklists/headlines use `items`; charts
-use at least two real `values`. Cutout effects need macOS Vision; the full
+use at least two real `values`. Cutout effects need macOS Vision and Apple's
+command-line tools; the desk marks them unavailable on other platforms. The full
 template layouts target 9:16 portrait. All rendering stays on this computer.
+
+Two direct templates work on the creator's original video:
+
+- **Words behind you** (`text-behind-person`) layers the original video, a
+  headline, and an automatically masked copy of the presenter. The room stays
+  visible. Supply nonempty `text`; optional `textSize` is a fraction of the
+  short canvas side (0.06–0.30, default 0.16) and `textY` is a fraction down the
+  picture (0.10–0.85, default 0.30). Captions remain above the finished picture.
+  Choose a short phrase from the creator's words and check the face/shoulder
+  overlap in a rendered preview. No external background asset is needed.
+- **Count up** (`count-up`) uses exactly two finite `values`: `[start, end]`,
+  each between −1 trillion and 1 trillion. `text` is an optional descriptive
+  label. Numbers can be fractional, negative or descending; the animation
+  reaches the exact total before it exits. The editor asks for both numbers
+  instead of inventing a statistic. Use only creator-provided figures.
+
+For example, after the creator has supplied the headline and total, an effect
+can use `{"id":"headline","type":"text-behind-person","at":1,"duration":3,
+"strength":1,"text":"Your approved headline","textSize":0.18,"textY":0.28}`.
+A count uses the same timing fields with `"type":"count-up"`, the supplied
+`"values":[start,end]`, and its label in `text`. Put the count after the headline
+in the effects array to show its card above the presenter. Check that both fit
+the cut. Preview and MP4 export share the same composition and timing.
 
 Styled previews/exports are separate MP4s. Inspect the result for caption
 readability, foreground edges and timing. Save the six-second preview first

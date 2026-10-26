@@ -31,7 +31,7 @@ You need local terminal and file access, as in Claude Code or Codex. A chat sess
 
        ./scripts/yap-machine doctor
 
-   Preparing new footage and speech-based quality checks need whisper.cpp and a Whisper model. Follow the doctor's instructions for missing speech tools. Review and style work on already prepared projects can run before adding the speech tools. Styled export needs Chromium; an existing Chrome installation is detected on macOS, or set `YAP_BROWSER` to a Chromium executable. Remotion may download its browser when none is provided. Person cutout effects additionally require macOS and Swift.
+   Preparing new footage and speech-based quality checks need whisper.cpp and a Whisper model. Follow the doctor's instructions for missing speech tools. Review and style work on already prepared projects can run before adding the speech tools. Styled export needs Chromium; an existing Chrome installation is detected on macOS, or set `YAP_BROWSER` to a Chromium executable. Remotion may download its browser when none is provided. Automatic person cutouts additionally require macOS 12+ and Apple Command Line Tools (`xcode-select --install`). Use the catalog capability and its reason before choosing a cutout effect; do not silently substitute a different effect.
 
 5. Start the desk:
 
@@ -46,14 +46,20 @@ Keep the checkout in place: the agent connection points to it. After updating an
 Use the absolute path to `<checkout>/scripts/yap-machine` from any working directory. The installer does not add a global `yap-machine` command. Examples in the skills use `yap-machine` as shorthand for this wrapper.
 
 - Read `skill/SKILL.md` before cutting. `./scripts/yap-machine skill` prints the engine skill.
-- Read `desk/skills/yap-machine/SKILL.md` for the review tools: `yap_open`, `yap_new_project`, `yap_status`, `yap_next_batch`, `yap_reply`.
+- Read `desk/skills/yap-machine/SKILL.md` for the review tools: `yap_open`, `yap_new_project`, `yap_status`, `yap_next_batch`, `yap_resume_batch`, `yap_reply`.
 
 The loop: init a project in the desk workspace → prep its footage → read `takes.md` and `delivery.md` → write `cuts/v1/edl.json` → run `cut v1` → inspect `qc.md` and the join sheets → fix problems → use `yap_reply` to hand it over → use `yap_next_batch` to collect review notes → make a new version. Use the desk's **Style & export** screen or the `visuals` command for styled MP4s.
+
+After a disconnect, `yap_status` lists unfinished work in `pickedBatches`. Once the previous agent session has stopped, call `yap_resume_batch` with its batch ID. Inspect the existing versions and note replies before continuing, then answer with the same ID. Resuming does not requeue the batch or repeat completed work automatically; ordinary polling continues to pick only waiting batches.
 
 ## Files, privacy and platform limits
 
 - Source footage is read only. Keep originals and previously reviewed cut versions; write new versions for revisions.
 - Projects and renders stay in the selected local workspace. Never add personal footage, transcripts or renders to a public repository, demo or issue.
 - Yap Machine processes video and transcribes locally. The editing agent may send the text, images or files it reads to its own provider under that agent's settings. Dependency and model installation uses network downloads.
-- The source scripts target macOS and Linux. Person cutouts require macOS. Windows users can try WSL2; that route is not yet verified.
+- The source scripts target macOS and Linux. Automatic person cutouts require macOS 12+ and Apple Command Line Tools; noncutout effects remain available on Linux. Windows users can try WSL2; that route is not yet verified.
 - For settings, effects, platform details and component licences, read `studio/README.md` and `NOTICE`.
+
+## Release verification
+
+Read `RELEASE_NOTES.md` for the tested scope and current limits. The October 2026 macOS QA pass contains 119 Python tests and 259 Desk/renderer tests, plus 43 exported videos. A reference evaluation with the local Whisper base model stopped on a misheard phrase; only a separate manually corrected downstream run passed. Inspect the transcript and QC results instead of claiming every recording will edit without review.

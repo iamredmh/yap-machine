@@ -29,14 +29,20 @@ function launchFor(platform: NodeJS.Platform, source: string): McpLaunch {
 }
 
 /** How a harness should start the Yap Machine MCP server on this platform, from the current `SOURCE`. */
-export function mcpLaunch(platform: NodeJS.Platform): McpLaunch {
-  return launchFor(platform, SOURCE);
+export function mcpLaunch(platform: NodeJS.Platform, workspace?: string): McpLaunch {
+  return withWorkspace(launchFor(platform, SOURCE), workspace);
+}
+
+function withWorkspace(launch: McpLaunch, workspace?: string): McpLaunch {
+  if (workspace === undefined) return launch;
+  if (!isAbsolute(workspace)) throw new Error("Agent setup needs an absolute workspace path.");
+  return { ...launch, args: [...launch.args, "--home", workspace] };
 }
 
 /** Launch the built checkout directly, without npx, a registry, or a GUI app's Node PATH. */
-export function localMcpLaunch(nodeExecutable: string, cliFile: string): McpLaunch {
+export function localMcpLaunch(nodeExecutable: string, cliFile: string, workspace?: string): McpLaunch {
   if (!isAbsolute(nodeExecutable) || !isAbsolute(cliFile)) throw new Error("Local setup needs absolute Node and built CLI paths.");
-  return { command: nodeExecutable, args: [cliFile, "mcp"] };
+  return withWorkspace({ command: nodeExecutable, args: [cliFile, "mcp"] }, workspace);
 }
 
 /** The same launch shapes, one per `LEGACY_SOURCES` entry, for recognising an existing registration. */
@@ -100,7 +106,13 @@ export function launchesYap(args: unknown): boolean {
 
 /** Preserve custom settings on the requested launcher; a local request replaces an npm launcher. */
 function matchesLaunch(command: unknown, args: unknown, launch: McpLaunch): boolean {
-  if (launchesYap(launch.args) && launchesYap(args)) return true;
+  if (launchesYap(launch.args) && launchesYap(args)) {
+    const at = launch.args.indexOf("--home");
+    if (at === -1) return true;
+    const have = args as string[];
+    const haveAt = have.indexOf("--home");
+    return haveAt !== -1 && have[haveAt + 1] === launch.args[at + 1];
+  }
   return command === launch.command && JSON.stringify(args) === JSON.stringify(launch.args);
 }
 

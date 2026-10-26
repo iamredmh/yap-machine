@@ -72,39 +72,55 @@ def placement(project: Project, render, timeline: dict) -> list[str]:
     for k, s in enumerate(timeline["segments"]):
         src = project.source(s["source"])
         dur = s["end"] - s["start"]
-        probe = min(0.6, dur / 2)
-        rf = _frames(str(render), s["out_start"] + probe, 1)
+        fps = timeline["fps"]
+        probe = round(min(0.6, dur / 2) * fps) / fps
+        # Seek just before the selected frame, as the renderer does. A fixed
+        # 200 ms search window only has five preceding frames at 25 fps.
+        render_frame = round((s["out_start"] + probe) * fps)
+        rf = _frames(str(render), max(0, render_frame - .5) / fps, 1)
         if s.get("screen"):
             scr = project.source(s["screen"]["source"])
-            sf = _screen_frames(scr["path"], s["screen"]["start"] + probe - 0.2, 11, s["screen"].get("crop"),
+            target_frame = round((s["screen"]["start"] + probe) * fps)
+            first_frame = max(0, target_frame - 5)
+            expected = target_frame - first_frame
+            sf = _screen_frames(scr["path"], max(0, first_frame - .5) / fps, 11, s["screen"].get("crop"),
                                 timeline["width"], timeline["height"], timeline["fps"])
             what = "screen"
         else:
-            sf = _frames(src["path"], s["start"] + probe - 0.2, 11, s.get("zoom", 1.0), s.get("crop"))
+            source_fps = src.get("fps") or fps
+            target_frame = round((s["start"] + probe) * source_fps)
+            first_frame = max(0, target_frame - 5)
+            expected = target_frame - first_frame
+            sf = _frames(src["path"], max(0, first_frame - .5) / source_fps, 11,
+                         s.get("zoom", 1.0), s.get("crop"), (timeline["width"], timeline["height"]))
             what = "picture"
-        if len(rf) and len(sf):
+        if len(rf) and len(sf) > expected:
             top = int(THUMB_H * 0.5)    # burned-in captions, name cards and the PiP sit below this
             d = [float(np.abs(rf[0][:top] - f[:top]).mean()) for f in sf]
             best = int(np.argmin(d))
             # static shots (a still screen, a still speaker) match several frames equally well:
             # only call it misplaced when the intended frame is clearly worse
-            if best != 5 and d[5] - d[best] > 0.25:
-                problems.append(f"{fmt_tc(s['out_start'])} {what} is {best - 5:+d} frames from where it should be")
+            if best != expected and d[expected] - d[best] > 0.25:
+                problems.append(f"{fmt_tc(s['out_start'])} {what} is {best - expected:+d} frames from where it should be")
         audio = src.get("audio")
         c0, c1 = (audio or {}).get("range", [0, src["duration"]])
         if dur < 0.8:
             continue
         a = ra[int((s["out_start"] + 0.2) * sr):int((s["out_start"] + min(1.2, dur - 0.1)) * sr)]
         if audio and c0 <= s["start"] and s["end"] <= c1:
+            source_at = mic_time(audio, s["start"] + 0.2)
+            reference_start = max(0.0, source_at - 0.25)
             ref = load_audio(Path(project.source(audio["source"])["path"]), sr,
-                             start=max(0.0, mic_time(audio, s["start"] + 0.2) - 0.25), duration=len(a) / sr + 0.5)
+                             start=reference_start, duration=len(a) / sr + 0.5)
         else:
-            ref = load_audio(Path(src["path"]), sr, start=max(0.0, s["start"] + 0.2 - 0.25), duration=len(a) / sr + 0.5)
+            source_at = s["start"] + 0.2
+            reference_start = max(0.0, source_at - 0.25)
+            ref = load_audio(Path(src["path"]), sr, start=reference_start, duration=len(a) / sr + 0.5)
         if len(a) < sr // 4 or len(ref) <= len(a) or np.abs(a).max() < 1e-3:
             continue
         win = np.lib.stride_tricks.sliding_window_view(ref, len(a))
         score = win @ a / (np.linalg.norm(win, axis=1) + 1e-9)
-        lag_ms = (int(np.argmax(score)) / sr - 0.25) * 1000
+        lag_ms = (int(np.argmax(score)) / sr - (source_at - reference_start)) * 1000
         if abs(lag_ms) > 20:
             problems.append(f"{fmt_tc(s['out_start'])} sound is {lag_ms:+.0f} ms from where it should be")
     return problems
@@ -185,15 +201,16 @@ def _screen_frames(path: str, t: float, n: int, crop: list | None, W: int, H: in
     if crop:
         cx, cy, cw, ch = crop
         sc = f"crop=trunc(iw*{cw}/2)*2:trunc(ih*{ch}/2)*2:trunc(iw*{cx}):trunc(ih*{cy}),"
-    pr = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-ss", f"{max(0.0, t):.3f}", "-i", path,
-                         "-vf", f"fps={fps},{sc}scale={W}:{H}:force_original_aspect_ratio=decrease,"
-                                f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0xFAFAF9,scale={THUMB_W}:{THUMB_H},format=gray",
+    pr = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-ss", f"{max(0.0, t):.6f}", "-i", path,
+                         "-vf", f"setpts=PTS-STARTPTS,{sc}scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,"
+                                f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0xFAFAF9,setsar=1,fps={fps},scale={THUMB_W}:{THUMB_H},format=gray",
                          "-frames:v", str(n), "-f", "rawvideo", "-"], capture_output=True)
     k = len(pr.stdout) // (THUMB_W * THUMB_H)
     return np.frombuffer(pr.stdout[:k * THUMB_W * THUMB_H], np.uint8).reshape(k, THUMB_H, THUMB_W).astype(np.float32)
 
 
-def _frames(path: str, t: float, n: int, zoom: float = 1.0, rect: list | None = None) -> np.ndarray:
+def _frames(path: str, t: float, n: int, zoom: float = 1.0, rect: list | None = None,
+            canvas: tuple[int, int] | None = None) -> np.ndarray:
     if rect:
         x, y, cw, ch = rect
         crop = (f"crop=trunc(iw*{cw:.5f}/2)*2:trunc(ih*{ch:.5f}/2)*2:"
@@ -201,8 +218,13 @@ def _frames(path: str, t: float, n: int, zoom: float = 1.0, rect: list | None = 
     else:
         crop = (f"crop=iw/{zoom:.4f}:ih/{zoom:.4f}:(iw-iw/{zoom:.4f})/2:(ih-ih/{zoom:.4f})*0.4,"
                 if zoom > 1.001 else "")
-    pr = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-ss", f"{max(0.0, t):.3f}", "-i", path,
-                         "-frames:v", str(n), "-vf", f"{crop}scale={THUMB_W}:{THUMB_H},format=gray",
+    fit = ""
+    if canvas:
+        w, h = canvas
+        fit = (f"scale={w}:{h}:force_original_aspect_ratio=decrease:flags=lanczos,"
+               f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,")
+    pr = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-ss", f"{max(0.0, t):.6f}", "-i", path,
+                         "-frames:v", str(n), "-vf", f"{crop}{fit}scale={THUMB_W}:{THUMB_H},format=gray",
                          # passthrough: never pad the start with a duplicated frame after a seek
                          "-fps_mode", "passthrough", "-f", "rawvideo", "-"], capture_output=True)
     k = len(pr.stdout) // (THUMB_W * THUMB_H)
@@ -269,7 +291,10 @@ def check(project: Project, version: str, lang: str | None = None, deep: bool = 
             for t in (s["start"] + 0.05, (s["start"] + s["end"]) / 2, s["end"] - 0.05):
                 f = _thumb(src["path"], t)
                 if f is not None and float(np.mean(np.abs(f - ref))) > 18:
-                    errors.append(f"{fmt_tc(s['out_start'] + t - s['start'])} the shot looks different from the rest "
+                    # An appearance change can be an intentional graphic or
+                    # camera movement. Keep it visible for review, without
+                    # declaring an otherwise correctly rendered cut invalid.
+                    warns.append(f"{fmt_tc(s['out_start'] + t - s['start'])} the shot looks different from the rest "
                                   f"(something in front of the lens, or framing moved) — look at source {fmt_tc(t)}")
                     break
         if k > 0:
@@ -329,6 +354,9 @@ def check(project: Project, version: str, lang: str | None = None, deep: bool = 
         picks = [starts[0], starts[len(starts) // 2], starts[-1]] if len(starts) >= 3 else starts
         for v in verify(project, src, picks):
             stats["sync_checks"].append({"source": sid, **v})
+            if v.get("inconclusive"):
+                warns.append(f"mouth/mic check near source {fmt_tc(v['at'])}: {v['reason']}")
+                continue
             if 3 <= v["z"] < 4:
                 warns.append(f"mouth/mic match near source {fmt_tc(v['at'])} is weak ({v['z']}σ) — worth a look")
             if v["z"] < 3:

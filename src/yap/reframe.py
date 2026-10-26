@@ -50,20 +50,25 @@ def _detect(casc, gray: np.ndarray) -> tuple[float, float, float] | None:
 
 def faces(project: Project, src: dict, t0: float, t1: float) -> list[tuple[float, float, float, float]]:
     """(t, cx, cy, fh) samples in [t0, t1], cached per source."""
-    cache_path = project.root / "cache" / f"{src['id']}.faces.json"
+    # Older samples stretched every input to 16:9, so portrait faces were
+    # distorted and small graphics could be mistaken for the speaker.
+    cache_path = project.root / "cache" / f"{src['id']}.faces-v2.json"
     cache: dict[str, list | None] = json.loads(cache_path.read_text()) if cache_path.exists() else {}
     need = [k for k in range(int(t0 * SAMPLE_FPS), int(t1 * SAMPLE_FPS) + 1) if str(k) not in cache]
     if need:
         casc = _detector()
+        sw, sh = src.get("width") or DET_W, src.get("height") or DET_H
+        scale = min(DET_W / sw, DET_W / sh, 1.0)
+        dw, dh = max(1, round(sw * scale)), max(1, round(sh * scale))
         # decode the needed span once, sampling at SAMPLE_FPS
         a, b = need[0] / SAMPLE_FPS, need[-1] / SAMPLE_FPS + 1 / SAMPLE_FPS
         proc = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-ss", f"{a:.3f}", "-i", src["path"],
                                "-t", f"{b - a:.3f}", "-vf",
-                               f"fps={SAMPLE_FPS},scale={DET_W}:{DET_H},format=gray",
+                               f"fps={SAMPLE_FPS},scale={dw}:{dh},format=gray",
                                "-f", "rawvideo", "-"], capture_output=True)
         frames = np.frombuffer(proc.stdout, np.uint8)
-        n = len(frames) // (DET_W * DET_H)
-        frames = frames[:n * DET_W * DET_H].reshape(n, DET_H, DET_W)
+        n = len(frames) // (dw * dh)
+        frames = frames[:n * dw * dh].reshape(n, dh, dw)
         base = need[0]
         for i in range(n):
             if str(base + i) not in cache:

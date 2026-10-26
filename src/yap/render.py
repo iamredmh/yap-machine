@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
@@ -90,13 +91,25 @@ def _measure_loudness(path: Path) -> dict | None:
         ["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-vn",
          "-af", f"loudnorm=I={LOUD_I}:TP={LOUD_TP}:LRA={LOUD_LRA}:print_format=json", "-f", "null", "-"],
         capture_output=True, text=True)
+    if proc.returncode:
+        return None
     s = proc.stderr
     a, b = s.rfind("{"), s.rfind("}")
     if a < 0 or b <= a:
         return None
     try:
-        return json.loads(s[a:b + 1])
-    except json.JSONDecodeError:
+        measured = json.loads(s[a:b + 1])
+        # Silence reports -inf loudness/peak and inf offset. These are valid
+        # measurement results, but invalid second-pass filter arguments.
+        # Unmeasurable audio keeps its original level in the final pass.
+        bounds = {"input_i": (-99, 0), "input_tp": (-99, 99), "input_lra": (0, 99),
+                  "input_thresh": (-99, 0), "target_offset": (-99, 99)}
+        for key, (lo, hi) in bounds.items():
+            value = float(measured[key])
+            if not math.isfinite(value) or not lo <= value <= hi:
+                return None
+        return measured
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
         return None
 
 
@@ -185,7 +198,9 @@ def render(project: Project, version: str, draft: bool = False, jobs: int = 4, l
               f"measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}:"
               f"measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true,aresample=48000")
     else:
-        af = f"loudnorm=I={LOUD_I}:TP={LOUD_TP}:LRA={LOUD_LRA},aresample=48000"
+        # One-pass loudnorm can also produce NaN samples on short silence.
+        # Preserve silent/ungated audio instead of trying to amplify it.
+        af = "aresample=48000"
     # Publish atomically: a failed export never replaces a playable version.
     temp_out = work / "finished.mp4"
     # Keep the joined PCM audio through the final pass. Chromium's intermediate

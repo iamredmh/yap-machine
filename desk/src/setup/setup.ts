@@ -25,6 +25,8 @@ export interface SetupOptions {
   only?: HarnessId[];
   dryRun?: boolean;
   local?: boolean;
+  /** Bind the agent to the same explicit workspace as the browser editor. */
+  workspace?: string;
 }
 
 export interface SetupResult {
@@ -94,7 +96,7 @@ async function one(h: Harness, env: SetupEnv, dryRun: boolean, launch: McpLaunch
       if (got.code === 0) {
         const sameLocal = /^\s*Command:\s*(.+)$/mi.exec(got.out)?.[1].trim() === launch.command
           && /^\s*Args:\s*(.*)$/mi.exec(got.out)?.[1].trim() === launch.args.join(" ");
-        if (local ? sameLocal : !mentionsLegacySource(got.out)) return { ...base, status: "already", detail: `yap-machine MCP server already registered: ${launchText}`, skill };
+        if (local || launch.args.includes("--home") ? sameLocal : !mentionsLegacySource(got.out)) return { ...base, status: "already", detail: `yap-machine MCP server already registered: ${launchText}`, skill };
         if (dryRun) return { ...base, status: "would-add", detail: "replace the user-scoped yap-machine MCP launch with " + launchText, skill };
         const removed = await env.exec("claude", ["mcp", "remove", "--scope", "user", "yap-machine"], env.home);
         if (removed.code !== 0) return { ...base, status: "failed", detail: removed.out.trim() || "claude mcp remove failed", skill };
@@ -123,7 +125,7 @@ async function one(h: Harness, env: SetupEnv, dryRun: boolean, launch: McpLaunch
 
 /** Register the Yap Machine MCP server (and skill, where supported) with every installed harness. */
 export async function setup(env: SetupEnv, opts: SetupOptions = {}): Promise<SetupResult[]> {
-  const launch = opts.local ? localMcpLaunch(env.nodeExecutable ?? process.execPath, env.cliFile ?? builtCliFile()) : mcpLaunch(env.platform);
+  const launch = opts.local ? localMcpLaunch(env.nodeExecutable ?? process.execPath, env.cliFile ?? builtCliFile(), opts.workspace) : mcpLaunch(env.platform, opts.workspace);
   if (opts.local && !(await exists(launch.args[0]))) throw new Error("The built Desk CLI is missing. Run ./scripts/install from the source checkout first.");
   const list = harnesses(env.home, env.platform, env.appData).filter((h) => !opts.only || opts.only.includes(h.id));
   const out: SetupResult[] = [];

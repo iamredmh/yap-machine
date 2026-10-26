@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Hono } from 'hono';
@@ -9,10 +9,12 @@ import { InvalidError, NotFoundError, RevConflictError } from '../core/errors.js
 import { runEngine } from '../core/engine.js';
 import { readProject, readVersion } from '../core/workspace.js';
 import { contentType, mediaSecurityHeaders, sendFile } from './files.js';
+import { personMatteCapabilities } from './person-matte.js';
 const anchor = z.object({ source: z.string().min(1), time: z.number().finite().min(0), occurrence: z.number().int().min(0).default(0) });
 export const EffectSchema = z.object({
     id: z.string().regex(/^[\w-]{1,80}$/), type: z.string(), at: z.number().finite().min(0), duration: z.number().finite().min(.1).max(60),
     strength: z.number().finite().min(.25).max(2).default(1), enabled: z.boolean().default(true), text: z.string().max(180).default(''),
+    textSize: z.number().finite().min(.06).max(.3).optional(), textY: z.number().finite().min(.1).max(.85).optional(),
     items: z.array(z.string().trim().min(1).max(80)).max(8).default([]), values: z.array(z.number().finite().min(-1e12).max(1e12)).max(12).default([]),
     asset: z.string().optional(), anchor: anchor.optional(),
 });
@@ -82,6 +84,10 @@ export async function validateVisual(home: string, id: string, version: string, 
             throw new InvalidError(`${type.name} runs past the end of the cut`);
         if (!e.enabled)
             continue;
+        if (e.type === 'text-behind-person' && !e.text.trim())
+            throw new InvalidError('Add the words you want to place behind you');
+        if (e.type === 'count-up' && e.values.length !== 2)
+            throw new InvalidError('Count up needs exactly two numbers: a starting value and your total');
         if (['checklist', 'checklist-pop', 'headline-storm'].includes(e.type) && !e.items.length)
             throw new InvalidError('Add the words you want this effect to show');
         if (e.type === 'growth-curve' && e.values.length < 2)
@@ -92,7 +98,7 @@ export async function validateVisual(home: string, id: string, version: string, 
             if (!e.asset || !/^uploads\/[\w.-]+$/.test(e.asset) || !['.png', '.jpg', '.jpeg', '.webp', '.mp4', '.mov', '.webm', '.m4v'].includes(extname(e.asset).toLowerCase()))
                 throw new InvalidError('Choose an uploaded image or video');
             const file = resolve(home, id, e.asset);
-            const root = resolve(home, id, 'uploads');
+            const root = join(await realpath(resolve(home, id)), 'uploads');
             const real = await import('node:fs/promises').then(m => m.realpath(file)).catch(() => null);
             if (!real || !real.startsWith(root + '/'))
                 throw new InvalidError('That effect asset is no longer available');
@@ -137,13 +143,17 @@ export function installVisuals(app: Hono, home: string, emit: (e: {
             throw new NotFoundError('cut', v);
         return cut;
     };
-    app.get('/api/visuals/catalog', async (c) => c.json(await visualCatalog()));
+    app.get('/api/visuals/catalog', async (c) => c.json({ ...await visualCatalog(), capabilities: personMatteCapabilities() }));
     app.get('/api/projects/:p/versions/:v/visual-source', async (c) => {
         const id = c.req.param('p'), v = c.req.param('v'), cut = await target(id, v);
         const raw = await readFile(join(cut, 'timeline.json'), 'utf8');
         const timelineRev = createHash('sha256').update(raw).digest('hex');
         const context=await Promise.all([join(home,id,'style.json'),join(home,id,'people.json'),join(cut,'edl.json')].map(p=>json(p,{})));
-        const contextRev=createHash('sha256').update(JSON.stringify(context)).digest('hex');
+        const projectConfig = await json(join(home, id, 'project.json'), { sources: [] });
+        const uploads = await readdir(join(home, id, 'uploads')).catch((e: NodeJS.ErrnoException) => { if (e.code === 'ENOENT') return []; throw e; });
+        const mediaPaths = [...(projectConfig.sources ?? []).flatMap((s: any) => typeof s.path === 'string' ? [s.path] : []), ...uploads.map(file => join(home, id, 'uploads', file))].sort();
+        const mediaState = await Promise.all(mediaPaths.map(async path => { const s = await stat(path).catch(() => null); return [path, s?.size, s?.mtimeMs]; }));
+        const contextRev=createHash('sha256').update(JSON.stringify([...context, projectConfig, mediaState])).digest('hex');
         const matte = c.req.query('matte') === '1', key = `${cut}:${timelineRev}:${contextRev}:${matte}`;
         if (!sources.has(key)) {
             const pending = (async () => {
@@ -178,9 +188,9 @@ export function installVisuals(app: Hono, home: string, emit: (e: {
     });
     app.get('/api/projects/:p/visual-assets/:file', async (c) => {
         const id = c.req.param('p'), file = c.req.param('file');
-        if (!/^[\w-]+$/.test(id) || !/^visual-[a-f0-9-]+\.(png|jpe?g|webp|mp4|mov|webm|m4v)$/i.test(file) || !await readProject(home, id))
+        if (!/^[\w-]+$/.test(id) || !/^[\w.-]+\.(png|jpe?g|webp|mp4|mov|webm|m4v)$/i.test(file) || !await readProject(home, id))
             throw new NotFoundError('asset', file);
-        const root = resolve(home, id, 'uploads'), path = await import('node:fs/promises').then(m => m.realpath(join(root, file))).catch(() => null);
+        const root = join(await realpath(resolve(home, id)), 'uploads'), path = await realpath(join(root, file)).catch(() => null);
         if (!path || !path.startsWith(root + '/'))
             throw new NotFoundError('asset', file);
         const res = await sendFile(path, c.req.header('range'), contentType(path));
@@ -192,7 +202,7 @@ export function installVisuals(app: Hono, home: string, emit: (e: {
         const id = c.req.param('p'), key = c.req.param('key'), file = c.req.param('file');
         if (!/^[\w-]+$/.test(id) || !/^[a-f0-9]{20}$/.test(key) || !/^\d{6}\.png$/.test(file) || !await readProject(home, id))
             throw new NotFoundError('mask', file);
-        const root = resolve(home, id, 'cache/person-masks'), path = await import('node:fs/promises').then(m => m.realpath(join(root, key, 'masks', file))).catch(() => null);
+        const root = join(await realpath(resolve(home, id)), 'cache/person-masks'), path = await realpath(join(root, key, 'masks', file)).catch(() => null);
         if (!path || !path.startsWith(root + '/'))
             throw new NotFoundError('mask', file);
         const res = await sendFile(path, undefined, 'image/png');

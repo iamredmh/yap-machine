@@ -172,6 +172,14 @@ def sync(project: Project) -> list[dict]:
             if pic and aud and abs(aud[0] - pic["offset"]) <= 3 / fps:
                 chosen = {"offset": round(aud[0], 4), "drift_ppm": pic["drift_ppm"], "method": "audio+picture",
                           "score": pic["r"], "cell": pic["cell"]}
+            elif aud and aud[1] >= MIN_AUDIO_CONF:
+                # Matching recorded waveforms are stronger timing evidence than
+                # incidental motion (captions, gestures or a moving background).
+                # A conflicting picture estimate cannot supply trustworthy drift.
+                chosen = {"offset": round(aud[0], 4), "drift_ppm": 0.0, "method": "audio", "score": aud[1] / 100}
+                if pic:
+                    res["warning"] = (f"camera audio strongly matches at {aud[0]:+.2f}s, picture suggests {pic['offset']:+.2f}s; "
+                                      "using the recorded audio match")
             elif pic:
                 chosen = {"offset": pic["offset"], "drift_ppm": pic["drift_ppm"], "method": "picture",
                           "score": pic["r"], "cell": pic["cell"]}
@@ -214,9 +222,14 @@ def verify(project: Project, cam: dict, at: list[float], window: float = 30.0) -
     pad = 6.0                                     # seconds of mic either side, for chance levels
     out = []
     for t in at:
-        t0 = max(0.0, min(t - window / 2, cam["duration"] - window))
-        cells = motion_cells(Path(cam["path"]), fps, t0, window)
-        env = speech_envelope(Path(mic["path"]), fps, max(0.0, mic_time(audio, t0) - pad), window + 2 * pad)
+        span = min(window, cam["duration"])
+        t0 = max(0.0, min(t - span / 2, cam["duration"] - span))
+        cells = motion_cells(Path(cam["path"]), fps, t0, span)
+        env = speech_envelope(Path(mic["path"]), fps, max(0.0, mic_time(audio, t0) - pad), span + 2 * pad)
+        if len(cells) < 2 or len(env) < 2:
+            out.append({"at": round(t0, 1), "r": 0.0, "frames": 0, "z": 0.0,
+                        "inconclusive": True, "reason": "too little picture or audio to measure mouth/mic alignment"})
+            continue
         base = int(round(min(pad, mic_time(audio, t0)) * fps))
         if audio.get("mouth_cell"):
             r0, c0 = audio["mouth_cell"]
@@ -232,11 +245,21 @@ def verify(project: Project, cam: dict, at: list[float], window: float = 30.0) -
             near = [score(d) for d in range(-4, 5)]
             far = [score(d) for d in list(range(-int(pad * fps), -int(1.5 * fps), 3)) + list(range(int(1.5 * fps), int(pad * fps), 3))]
             far = np.array([x for x in far if not np.isnan(x)])
+            if not np.isfinite(near).any():
+                continue
             j = int(np.nanargmax(near))
             z = (near[j] - far.mean()) / (far.std() + 1e-9) if len(far) > 5 else 0.0
             if best is None or z > best[2]:
-                best = (near[j], j - 4, z)
+                best = (near[j], j - 4, z, len(far) <= 5)
+        if best is None:
+            # Keep this a failed match: a stored offset with no overlapping
+            # comparison window must not be mistaken for a successful check.
+            out.append({"at": round(t0, 1), "r": 0.0, "frames": 0, "z": 0.0,
+                        "reason": "the stored mic offset leaves no comparable audio window"})
+            continue
         out.append({"at": round(t0, 1), "r": round(best[0], 3), "frames": best[1], "z": round(float(best[2]), 1)})
+        if best[3]:
+            out[-1].update(inconclusive=True, reason="the clip is too short for independent mouth/mic confidence comparisons")
     return out
 
 

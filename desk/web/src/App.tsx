@@ -11,6 +11,7 @@ import { diffCuts, mapTime, viewInA } from "./cut-diff.js";
 import { clampView, fullView, keyZoom, type View as Win } from "./timeline-zoom.js";
 import { hit } from "./focus.js";
 import { VisualStudio } from "./VisualStudio.js";
+import { captionEditState } from "./caption-edit-state.js";
 import { StudioIcon } from "./StudioIcon.js";
 import { ReviewTabs } from "./ReviewTabs.js";
 import "./workflow.css";
@@ -56,7 +57,8 @@ export function App() {
   useEffect(() => { loadLan(); }, []);
 
   const loadProjects = () => api.get("/api/projects").then((r) => { setProjects(r.projects); setJobs(r.jobs); setHome(r.home); setLoaded(true); }).catch(() => setLoaded(true));
-  const loadDesk = () => api.get("/api/desk").then(setDesk).catch(() => undefined);
+  const refreshDesk = () => api.get("/api/desk").then(setDesk);
+  const loadDesk = () => refreshDesk().catch(() => undefined);
   useEffect(() => {
     loadProjects();
     loadDesk();
@@ -125,7 +127,7 @@ export function App() {
           : !project ? <section class="view"><Empty go={() => setView("inbox")} /></section>
           : view === "review" ? <Review key={project.id} project={project} desk={desk} stamp={stamp} waitingCount={waitingCount} focus={focus} setFocus={(f) => { setFocus(f); setChatOpen(false); }} initialVersion={selectedCuts[project.id]} onVersion={(v) => setSelectedCuts(c => ({ ...c, [project.id]: v }))} onStyle={() => setView("look")} onChat={() => { setFocus(false); setChatOpen(true); }} />
           : view === "shorts" ? <Shorts project={project} desk={desk} waitingCount={waitingCount} />
-          : <Look key={project.id} project={project} desk={desk} initialVersion={selectedCuts[project.id]} onVersion={(v) => setSelectedCuts(c => ({ ...c, [project.id]: v }))} />}
+          : <Look key={project.id} project={project} desk={desk} refreshDesk={refreshDesk} initialVersion={selectedCuts[project.id]} onVersion={(v) => setSelectedCuts(c => ({ ...c, [project.id]: v }))} />}
       </main>
 
       {phoneOpen && <PhoneAccess onClose={() => { setPhoneOpen(false); loadLan(); }} />}
@@ -1065,16 +1067,31 @@ function ShortCard({ project, s, notes, l, setLang, open }: { project: any; s: a
 
 const ACCENTS = ["#F0412B", "#2B69F6", "#14938E", "#E8A317", "#0B0B0D"];
 
-function Look({ project, desk, initialVersion, onVersion }: { project: any; desk: any; initialVersion?: string; onVersion: (v: string) => void }) {
+function Look({ project, desk, refreshDesk, initialVersion, onVersion }: { project: any; desk: any; refreshDesk: () => Promise<void>; initialVersion?: string; onVersion: (v: string) => void }) {
   const [look, setLook] = useState<any>(null);
   const [spell, setSpell] = useState("");
   const [err, setErr] = useState("");
+  const [captionRequests, setCaptionRequests] = useState(0);
+  const [sending, setSending] = useState(false);
   const pending = desk.look.filter((c: any) => c.project === project.id);
+  const captionEdits = captionEditState(desk, project.id, captionRequests > 0 || sending);
+  const batchRevision = desk.batches.filter((b: any) => b.project === project.id).map((b: any) => `${b.id}:${b.status}`).join('|');
   const val = (key: string, fallback: any) => pending.find((c: any) => c.key === key)?.value ?? fallback;
-  useEffect(() => { api.get(`/api/projects/${project.id}/look`).then(setLook).catch(e => setErr(e.message)); }, [project.id, desk.batches.length]);
+  useEffect(() => { api.get(`/api/projects/${project.id}/look`).then(setLook).catch(e => setErr(e.message)); }, [project.id, batchRevision]);
   const short = project.shorts[0];
   if (!look) return <section class="view"><p class="faint">{err || "Loading…"}</p></section>;
-  const change = (key: string, value: unknown, label: string) => api.post(`/api/projects/${project.id}/look`, { key, value, label }).catch(e => setErr(e.message));
+  const change = async (key: string, value: unknown, label: string) => {
+    setCaptionRequests(n => n + 1); setErr('');
+    try { await api.post(`/api/projects/${project.id}/look`, { key, value, label }); await refreshDesk(); }
+    catch (e) { setErr((e as Error).message); }
+    finally { setCaptionRequests(n => n - 1); }
+  };
+  const sendChanges = async () => {
+    setSending(true); setErr('');
+    try { await api.post(`/api/projects/${project.id}/send`, {}); await refreshDesk(); }
+    catch (e) { setErr((e as Error).message); }
+    finally { setSending(false); }
+  };
   const accent = val("accent", look.accent);
   const person = look.people[0] ?? { id: "me", name: "", title: "" };
   const name = val(`person.${person.id}.name`, person.name);
@@ -1083,9 +1100,9 @@ function Look({ project, desk, initialVersion, onVersion }: { project: any; desk
   const upper = capStyle.case === "upper";
   return (
     <section class="look-view">
-      <VisualStudio key={project.id} project={project} initialVersion={initialVersion} onVersion={onVersion} captions={<div class="vs-caption-controls">
+      <VisualStudio key={project.id} project={project} initialVersion={initialVersion} onVersion={onVersion} captionEdits={captionEdits} captions={<div class="vs-caption-controls">
       {err && <p class="err" role="alert">{err}</p>}
-      {pending.length > 0 && <div class="vs-input-hint"><p>{pending.length} change{pending.length === 1 ? '' : 's'} ready for your agent.</p><button class="btn" onClick={() => api.post(`/api/projects/${project.id}/send`, {}).catch(e => setErr(e.message))}>Send changes to agent</button></div>}
+      {pending.length > 0 && <div class="vs-input-hint"><p>{pending.length} change{pending.length === 1 ? '' : 's'} ready for your agent.</p><button class="btn" disabled={sending || captionRequests > 0} onClick={sendChanges}>{sending ? 'Sending changes…' : 'Send changes to agent'}</button></div>}
         <div class="stack" style="gap:16px">
           <div class="panel pad">
             <h3>Captions</h3>

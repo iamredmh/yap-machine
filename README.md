@@ -55,6 +55,18 @@ commands. Restart the agent session to load the tools. The agent also needs loca
 and terminal access to make edits; the review connection alone does not provide it.
 Keep the checkout in its installed location so the connection continues to work.
 
+If you chose a custom workspace, connect the agent to that same folder. This saves
+the path in its configuration so it also works when the agent starts outside your terminal:
+
+```bash
+node desk/dist/cli/index.js setup --local --only claude-code --home "/path/to/workspace"
+./scripts/start-desk "/path/to/workspace"
+```
+
+You can also use `./scripts/install --agent=claude-code --home="/path/to/workspace"`
+during installation. Setting `YAP_HOME` when running setup has the same effect.
+If you move to another workspace, rerun setup with its new path and restart your agent session.
+
 This is a GitHub source installation. An npm or PyPI package is not required.
 
 ## What you need
@@ -77,8 +89,10 @@ style renderer instead. Whisper and its model are needed for transcription and
 speech-based quality checks. Styled export may download a
 Chromium browser on first use if an existing one is not configured.
 
-The source scripts target **macOS and Linux**. Person cutout effects require macOS
-and Swift. Windows users can try WSL2; that route has not yet been verified.
+The source scripts target **macOS and Linux**. Automatic person cutout effects require **macOS 12 or newer** and
+**Apple Command Line Tools** (`xcode-select --install`). These effects include
+text behind the speaker, background replacement and paper cutouts. Other styles,
+captions, counters and effects that do not use person masks can run on Linux. Windows users can try WSL2; that route has not yet been verified.
 
 ## Transcription
 
@@ -105,9 +119,13 @@ Preparing new footage and speech-based quality checks need whisper.cpp and a mod
 ## Status
 
 The engine handles long cuts, vertical shorts, captions, name cards,
-translations and screen recordings. The desk handles review, comparison,
+translated captions supplied by your agent and screen recordings. The desk handles review, comparison,
 notes, and direct style/effect editing. This checkout includes all six Style
-Studio packs and 20 timed effects, with local preview and styled export.
+Studio packs and 22 timed effects, with local preview and styled export.
+
+See [release notes](RELEASE_NOTES.md) for the latest changes, verification scope
+and known limits. The October 2026 macOS QA pass ran 378 automated tests and
+produced 43 exported videos; this does not certify every input or platform.
 
 ## Use
 
@@ -126,8 +144,8 @@ use the absolute path to `scripts/yap-machine` when working elsewhere. No global
 ## Styles and effects
 
 Open **Style & export** in the desk to apply Volt, Ledger, Sketch, Terminal, Glass or Pop
-to your cut, choose its accent and motion, and add any of the 20 timed effects
-from the reference video. Effects have editable timing, text, checklist items,
+to your cut, choose its accent and motion, and add any of the 22 timed effects
+in the effect library, including a headline behind the speaker and an animated counter. Effects have editable timing, text, checklist items,
 chart values, and image/video uploads where needed. Place a moment on a
 transcript line or the playback position. Compare against the original, undo edits,
 and export a separate styled MP4. The video stays visible beside the editing tools.
@@ -139,7 +157,7 @@ per import) or an existing folder for larger shoots. Preparing footage transcrib
 and organizes it; your editing agent creates the first cut.
 
 Styles need Node 22.12+ and Chromium. Person cutouts use
-macOS Vision locally. The full style layouts are designed for vertical video;
+macOS 12+ Vision locally and need Apple Command Line Tools. The full style layouts are designed for vertical video;
 wide cuts use styled captions and effects. See [studio/README.md](studio/README.md)
 for setup, saved settings, CLI commands, platform support and credits.
 
@@ -150,10 +168,10 @@ for setup, saved settings, CLI commands, platform support and credits.
 | Separate mic | Cross-correlates it with the camera's own audio, uses the mic wherever it overlaps |
 | Transcribe | whisper.cpp with DTW word timing, nudged to keep ums and restarts verbatim; word ends measured from the audio |
 | Takes | Phrases numbered `P001…`, flagged `retake`, `cutoff`, `filler`, `lowconf`, `quiet`, and linked to every other attempt at the same line (`≈`) |
-| Cut points | Snapped into the quietest 10 ms near each word edge; pauses tightened by context (sentence / comma / mid-clause); frame-aligned so sound never drifts |
+| Cut points | Snapped into the quietest 10 ms near each word edge; pauses tightened by context (sentence / comma / mid-clause); frame-aligned to preserve source picture/audio timing |
 | Jump cuts | Alternating 1.12× punch-in on cuts within one camera |
 | Render | Per-segment cut with 15 ms fades, lossless join, two-pass loudness to −14 LUFS |
-| Checks | Dead air, stray slivers, broken-off words, a line kept twice, something blocking the lens, A/V length, loudness |
+| Checks | Dead air, stray slivers, broken-off words, a line kept twice, shot-appearance warnings for review, A/V placement and length, loudness |
 | Cut edges | When sound runs across a cut edge that the transcript has no words for (Whisper dropped words or placed one off), the edge moves out to the quiet beyond it, and the move is reported |
 | Re-listen | Transcribes the *render* and checks the words either side of every cut survived whole, none is heard twice, and the room sound carries across. A picture per join (frames, waveform, meant vs heard words) |
 | Delivery | Pace, filler rate and pauses per recording and per minute, and a table comparing every attempt at the same line |
@@ -171,7 +189,7 @@ for setup, saved settings, CLI commands, platform support and credits.
 Pass `-p /path/to/project` when running outside a project folder.
 
 `uv run python evals/run.py --solution` checks the whole engine against a synthetic take with a known right
-answer; `--agent claude` runs a real agent against it ([evals/README.md](evals/README.md)).
+answer (transcription errors can prevent an exact phrase match); `--agent claude` runs a real agent against it ([evals/README.md](evals/README.md)).
 
 ## Updating
 

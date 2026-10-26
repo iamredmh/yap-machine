@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Hono } from 'hono';
@@ -7,6 +7,7 @@ import { installVisuals, visualCatalog, visualCut } from './visuals.js';
 import { DeskError } from '../core/errors.js';
 import { z } from 'zod';
 import { runEngine } from '../core/engine.js';
+import { personMatteCapabilities } from './person-matte.js';
 vi.mock('../core/engine.js', () => ({ runEngine: vi.fn(async () => ({ code: 0, out: '' })) }));
 let home: string, app: Hono;
 const request = (path: string, body?: unknown) => app.request('http://localhost' + path, body === undefined ? undefined : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -50,7 +51,56 @@ describe('styles and effects API', () => {
         for (const url of ['/api/projects/p/visual-assets/project.json', '/api/projects/p/visual-masks/other/project.json'])
             expect((await request(url)).status).toBe(404);
     });
-    it('ships six actual style packs and twenty effects', async () => { const c = await visualCatalog(); expect(c.styles).toHaveLength(6); expect(new Set(c.effects.map((e: any) => e.id)).size).toBe(20); });
+    it('previews agent-supplied media filenames and rejects symlinks outside uploads', async () => {
+        await mkdir(join(home, 'p', 'uploads'));
+        await writeFile(join(home, 'p', 'uploads', 'my-background.mp4'), 'video fixture');
+        const response = await request('/api/projects/p/visual-assets/my-background.mp4');
+        expect(response.status).toBe(200);
+        expect(await response.text()).toBe('video fixture');
+        await symlink(join(home, 'p', 'project.json'), join(home, 'p', 'uploads', 'escaped.png'));
+        expect((await request('/api/projects/p/visual-assets/escaped.png')).status).toBe(404);
+    });
+    it('refreshes live source metadata when an agent changes footage or adds a background', async () => {
+        const source = join(home, 'p', 'camera.mp4');
+        await writeFile(source, 'first source');
+        await writeFile(join(home, 'p', 'project.json'), JSON.stringify({ sources: [{ id: 'a', path: source }] }));
+        vi.mocked(runEngine).mockResolvedValue({ code: 0, out: JSON.stringify({ plate: join(home, 'p', 'renders', '__live-v1-abc.mp4'), effects: [], words: [] }) });
+        const path = '/api/projects/p/versions/v1/visual-source';
+        expect((await request(path)).status).toBe(200);
+        expect((await request(path)).status).toBe(200);
+        expect(runEngine).toHaveBeenCalledTimes(1);
+        await writeFile(source, 'replacement source with a different length');
+        expect((await request(path)).status).toBe(200);
+        expect(runEngine).toHaveBeenCalledTimes(2);
+        await mkdir(join(home, 'p', 'uploads'));
+        await writeFile(join(home, 'p', 'uploads', 'my-background.mp4'), 'new video');
+        expect((await request(path)).status).toBe(200);
+        expect(runEngine).toHaveBeenCalledTimes(3);
+    });
+    it('ships six actual style packs and twenty-two effects with local cutout availability', async () => {
+        const c = await visualCatalog(); expect(c.styles).toHaveLength(6); expect(new Set(c.effects.map((e: any) => e.id)).size).toBe(22);
+        const d = await (await request('/api/visuals/catalog')).json();
+        expect(d.capabilities).toEqual(personMatteCapabilities());
+    });
+    it('saves behind-person text placement without stripping its controls', async () => {
+        const effect = { ...good.effects[0], type: 'text-behind-person', text: 'My story', textSize: .22, textY: .4 };
+        const r = await save({ ...good, effects: [effect] });
+        expect(r.status).toBe(200);
+        expect((await r.json()).config.effects[0]).toMatchObject(effect);
+    });
+    it('rejects empty behind-person words and invalid position before saving', async () => {
+        const effect = { ...good.effects[0], type: 'text-behind-person', text: 'My story' };
+        for (const invalid of [{ text: '  ' }, { textSize: .01 }, { textY: .99 }])
+            expect((await save({ ...good, effects: [{ ...effect, ...invalid }] })).status).toBe(400);
+    });
+    it('requires exactly two finite count-up values while keeping fractional totals', async () => {
+        const effect = { ...good.effects[0], type: 'count-up' };
+        for (const values of [[], [12], [0, 12, 24], [null, 12], [0, 1e13]])
+            expect((await save({ ...good, effects: [{ ...effect, values }] })).status).toBe(400);
+        const r = await save({ ...good, effects: [{ ...effect, values: [12.5, -3.75], text: 'Temperature' }] });
+        expect(r.status).toBe(200);
+        expect((await r.json()).config.effects[0].values).toEqual([12.5, -3.75]);
+    });
     it('reads legacy cuts with their existing settings intact', async () => { await writeFile(join(home, 'p', 'style.json'), JSON.stringify({ accent: '#123456', spellings: { acme: 'ACME' } })); const d = await (await request(url)).json(); expect(d.config.preset).toBe('original'); expect(d.config.rev).toBe(0); });
     it('saves a new settings revision without changing the EDL', async () => { const r = await save(); expect(r.status).toBe(200); expect((await r.json()).config.rev).toBe(1); expect(await readFile(join(home, 'p', 'cuts', 'v1', 'visuals.json'), 'utf8')).toContain('snap-zoom'); });
     it('edits CLI settings that have no desk revision yet', async () => { await writeFile(join(home, 'p', 'cuts', 'v1', 'visuals.json'), JSON.stringify(good)); expect((await save()).status).toBe(200); });

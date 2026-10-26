@@ -28,12 +28,13 @@ function safe<A>(fn: (args: A) => Promise<unknown>) {
 const tc = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 
 /** A batch as the agent should read it: plain words, timecodes, what to do next. */
-export function describe(b: any, home: string): string {
+export function describe(b: any, home: string, opts: { resumed?: boolean } = {}): string {
   const lines = [`Batch ${b.id} for project "${b.project}"${b.version ? ` (reviewing ${b.version})` : ""}.`, ""];
   if (b.notes.length) {
     lines.push("Notes on the video:");
     for (const n of b.notes) {
       lines.push(`- [${n.id}] ${n.version} at ${tc(n.at)}: ${n.text}`);
+      if (opts.resumed) lines.push(`  Current state: ${n.status}.${n.reply ? ` Existing reply${n.fixedIn ? ` (in ${n.fixedIn})` : ""}: ${JSON.stringify(n.reply)}` : ""}`);
       // a note the person sent back: say what was tried, so the agent doesn't repeat it
       if (n.reopened && n.reply) lines.push(`  NOT FIXED (sent back${n.reopened > 1 ? ` ${n.reopened} times` : ""}). Your last reply${n.fixedIn ? ` (in ${n.fixedIn})` : ""}: "${n.reply}"`);
     }
@@ -97,7 +98,7 @@ export function createMcpServer(ctx: ToolContext): McpServer {
     "yap_status",
     {
       title: "What's in the desk",
-      description: "Projects, their versions and shorts with check results, anything being prepared, and how many batches are waiting for you.",
+      description: "Projects, versions and checks, preparation jobs, and waiting or picked-up batches. Picked batches may still be active; use yap_resume_batch only after the previous agent session has stopped.",
       inputSchema: {},
     },
     safe(async () => {
@@ -106,6 +107,7 @@ export function createMcpServer(ctx: ToolContext): McpServer {
       return {
         url: c.baseUrl + "/",
         waitingBatches: d.batches.filter((b: any) => b.status === "waiting").map((b: any) => ({ id: b.id, project: b.project })),
+        pickedBatches: d.batches.filter((b: any) => b.status === "picked").map((b: any) => ({ id: b.id, project: b.project, version: b.version, pickedAt: b.picked })),
         preparing: r.jobs.filter((j: any) => j.state === "running").map((j: any) => j.project),
         projects: r.projects.map((p: any) => ({
           id: p.id,
@@ -133,6 +135,20 @@ export function createMcpServer(ctx: ToolContext): McpServer {
       if (wait_seconds) q.set("wait", String(wait_seconds));
       const r = await c.get(`/api/agent/next?${q}`);
       return r.batch ? describe(r.batch, ctx.home) : "Nothing waiting.";
+    }),
+  );
+
+  server.registerTool(
+    "yap_resume_batch",
+    {
+      title: "Resume an interrupted batch",
+      description: "Reads a specific picked-up batch after a disconnect or stopped agent session. Use yap_status to find its ID. Only resume after the previous session has stopped; another agent may still be working on it. This does not requeue work or change note states. Inspect existing versions and replies before editing so completed work is not repeated, then reply using the same batch ID.",
+      inputSchema: { batch: z.string().min(1).describe("The picked batch ID from yap_status, after the previous agent session has stopped.") },
+    },
+    safe(async ({ batch }) => {
+      const c = await ctx.client();
+      const r = await c.post("/api/agent/resume", { batch });
+      return `Resuming existing work. Inspect the project's versions and these notes' current replies before making changes; do not repeat work already completed.\n\n${describe(r.batch, ctx.home, { resumed: true })}`;
     }),
   );
 

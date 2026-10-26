@@ -27,7 +27,7 @@
     "build": "tsc -p tsconfig.build.json && vite build && vite build --config vite.preview.config.ts && npm run copy-licenses",
     "copy-licenses": "node scripts/copy-licenses.mjs",
     "prepack": "npm run build",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.web.json",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.web.json && tsc -p tsconfig.renderer-tests.json",
     "test": "vitest run",
     "desk": "tsx src/cli/index.ts"
   },

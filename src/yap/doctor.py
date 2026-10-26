@@ -31,7 +31,7 @@ def checks() -> list[dict]:
     add("Python 3.11+", sys.version_info >= (3, 11), "runs the engine", "install uv: https://docs.astral.sh/uv/")
     add("ffmpeg", bool(shutil.which("ffmpeg")), "cuts, renders, loudness",
         "brew install ffmpeg" if mac else "sudo apt install ffmpeg")
-    from .visuals import studio_dir
+    from .visuals import person_matte_capability, studio_dir
     try:
         compositor = bool(shutil.which('node')) and (studio_dir() / 'node_modules/@remotion/renderer').is_dir()
     except Exception:
@@ -60,9 +60,9 @@ def checks() -> list[dict]:
     add("Node 22.12+", _ok(["node", "-e", "const [a,b]=process.versions.node.split('.').map(Number); process.exit(a<22 || (a===22 && b<12) ? 1 : 0)"]),
         "runs the desk and styles renderer", "https://nodejs.org or brew install node")
     add("Styles runtime", compositor, "renders style presets and effects", "run ./scripts/install from the repository folder")
-    if mac:
-        add("Swift", _ok(["swift", "--version"]), "optional person cutouts",
-            "xcode-select --install", required=False)
+    cutouts = person_matte_capability()
+    add("Person cutouts", cutouts["available"], "optional automatic speaker cutouts",
+        cutouts["reason"] or "", required=False)
     return res
 
 

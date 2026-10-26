@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localMcpLaunch, mergeJson, mergeToml } from "./harnesses.js";
+import { localMcpLaunch, mcpLaunch, mergeJson, mergeToml } from "./harnesses.js";
 
 describe("Codex config (TOML)", () => {
   it("adds a valid table, keeps the user's own settings, and does not add it twice", () => {
@@ -44,6 +44,17 @@ describe("local checkout registrations", () => {
   it("keeps executable paths as distinct arguments, without a shell or registry lookup", () => {
     expect(launch).toEqual({ command: "/opt/node tools/node", args: ["/Users/creator/My Projects/yap-machine/desk/dist/cli/index.js", "mcp"] });
     expect(() => localMcpLaunch("node", launch.args[0])).toThrow(/absolute/);
+  });
+  it("preserves spaces in an explicit workspace and rejects relative registrations", () => {
+    expect(localMcpLaunch(launch.command, launch.args[0], "/work/My videos").args).toEqual([...launch.args, "--home", "/work/My videos"]);
+    expect(() => localMcpLaunch(launch.command, launch.args[0], "relative")).toThrow(/absolute workspace/);
+  });
+  it("updates package launches only when an explicitly requested workspace differs", () => {
+    const original = JSON.stringify({ mcpServers: { "yap-machine": { command: "/opt/node/npx", args: ["-y", "yap-machine@0.1.0", "mcp", "--home", "/old"] } } });
+    expect(mergeJson(original, mcpLaunch("darwin", "/old")).changed).toBe(false);
+    const next = mergeJson(original, mcpLaunch("darwin", "/new"));
+    expect(JSON.parse(next.text).mcpServers["yap-machine"].args.slice(-2)).toEqual(["--home", "/new"]);
+    expect(mergeJson(next.text, mcpLaunch("darwin", "/new")).changed).toBe(false);
   });
   it("replaces an npm JSON launch while retaining custom and unrelated configuration", () => {
     const original = JSON.stringify({ mcpServers: { "yap-machine": { command: "npx", args: ["-y", "yap-machine", "mcp"], env: { YAP_HOME: "/workspace" }, disabled: false }, other: { command: "other" } }, theme: "light" });

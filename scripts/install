@@ -3,17 +3,24 @@
 set -euo pipefail
 yap_root="$(cd "$(dirname "$0")/.." && pwd)"
 agent=""
+workspace=""
 for arg in "$@"; do
   case "$arg" in
     --agent=*) agent="${arg#--agent=}" ;;
+    --home=*) workspace="${arg#--home=}" ;;
     --help|-h)
-      echo 'Usage: ./scripts/install [--agent=claude-code|codex|cursor|claude-desktop|gemini]'
+      echo 'Usage: ./scripts/install [--agent=claude-code|codex|cursor|claude-desktop|gemini] [--home=/path/to/workspace]'
       echo 'Installs locked project dependencies and builds the local editor.'
       echo 'With --agent, also connects that agent to this checkout.'
+      echo 'With --home, connects it to that workspace instead of ~/Yap.'
       exit 0 ;;
     *) echo "Unknown option: $arg. Use --help." >&2; exit 2 ;;
   esac
 done
+if [[ -n "$workspace" && -z "$agent" ]]; then
+  echo '--home requires --agent so that the chosen workspace can be saved in its configuration.' >&2
+  exit 2
+fi
 case "$agent" in
   ''|claude-code|codex|cursor|claude-desktop|gemini) ;;
   *) echo "Unknown agent: $agent. Use --help." >&2; exit 2 ;;
@@ -49,11 +56,14 @@ echo 'Building the editor…'
 npm ci --prefix desk --no-fund --no-audit
 npm run build --prefix desk
 if [[ -n "$agent" ]]; then
-  node desk/dist/cli/index.js setup --local --only "$agent"
+  setup_args=(setup --local --only "$agent")
+  if [[ -n "$workspace" ]]; then setup_args+=(--home "$workspace"); fi
+  node desk/dist/cli/index.js "${setup_args[@]}"
 fi
 echo
 echo 'Yap Machine is installed in this folder.'
 echo 'Open the editor: ./scripts/start-desk'
+if [[ -n "$workspace" ]]; then printf 'Your workspace: ./scripts/start-desk %q\n' "$workspace"; fi
 echo 'Check all tools: ./scripts/yap-machine doctor'
 echo 'Connect an agent: node desk/dist/cli/index.js setup --local --only claude-code'
 echo

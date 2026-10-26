@@ -79,6 +79,16 @@ export async function pickBatch(store: Store, project?: string): Promise<Batch |
   return result ? structuredClone(result) : null;
 }
 
+/** Explicit recovery after an agent stops: read the same batch without requeueing it. */
+export async function resumeBatch(store: Store, id: string): Promise<Batch> {
+  const { batches } = await store.read("batches");
+  const batch = batches.find((b) => b.id === id);
+  if (!batch) throw new NotFoundError("batch", id);
+  if (batch.status === "done") throw new InvalidError("This batch is already completed. Check the existing replies and versions instead of repeating its edits.");
+  if (batch.status !== "picked") throw new InvalidError("This batch has not been picked up. Use yap_next_batch for waiting work.");
+  return structuredClone(batch);
+}
+
 /** A batch with its notes and messages filled in, in the shape an agent reads. */
 export async function expand(store: Store, batch: Batch) {
   const [notes, chat] = await Promise.all([store.read("notes"), store.read("chat")]);

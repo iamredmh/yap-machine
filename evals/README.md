@@ -4,7 +4,7 @@ Does an agent, given only the skill, turn a messy take into a clean cut? These e
 a synthetic take whose right answer is known, and a deterministic grader (no LLM opinion).
 
 ```bash
-uv run python evals/run.py --solution          # no agent: proves the fixture and grader agree (20 s, free)
+uv run python evals/run.py --solution          # reference EDL, local transcription, render and checks
 uv run python evals/run.py --agent claude --model sonnet --budget 4
 ```
 
@@ -22,6 +22,6 @@ uv run python evals/run.py --agent claude --model sonnet --budget 4
 - **Sign-in**: the agent run needs `claude` to be logged in on its own (`claude` in a terminal). It can't
   borrow a desktop app's session; the harness says so if it can't sign in.
 
-The reference solution picks phrases by what they say, so it doesn't depend on how Whisper numbers or splits them. Whisper can vary slightly between identical runs, so a join warning can appear in one run and not the next.
+The reference solution picks phrases by what they say, so it doesn't depend on how Whisper numbers or splits them. The reference matcher depends on the transcript containing the expected words. In the October 2026 QA run, the local base model heard “savor cup” instead of “save a cup”, so the unmodified reference run stopped before creating an EDL. A separate run with that transcript corrected passed all 19 downstream checks. Review transcription errors rather than treating the corrected run as an automatic-transcription pass. Runtime and warnings depend on the machine, model and source.
 
 Add a case by adding a fixture with its own `GOOD`, `BAD` and `ONCE` lists and pointing `run.py` at it.

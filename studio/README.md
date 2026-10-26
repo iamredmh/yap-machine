@@ -4,17 +4,22 @@ This adapter runs the six Style Studio packs on Yap Machine's resolved cut and
 word timings, then composites timed effects. Footage, audio and person masks
 stay local. The desk is still the existing Yap Machine desk.
 
-From the repository root, `./scripts/start-desk ~/Yap` installs the locked
-engine and Node dependencies, builds the desk and serves that workspace.
+From the repository root, run `./scripts/install` to install the locked engine
+and Node dependencies and build the desk. Then run `./scripts/start-desk ~/Yap`
+to open that workspace. Starting the desk does not install dependencies.
 Alternatively run `npm ci --prefix studio` once, alongside the usual engine
 and desk installation. Styles need Node 22.12+, FFmpeg and a Chromium executable
 (Google Chrome is detected on macOS). Set `YAP_BROWSER` to another Chromium
 executable when needed. Rendering uses an isolated headless browser profile;
 a browser extension is not needed for video rendering.
 
-Cutout effects use macOS Vision and Apple's command-line tools (`swiftc`).
+Automatic person cutouts require **macOS 12 or newer** and **Apple Command Line
+Tools**, installed with `xcode-select --install`. They use Apple Vision and a
+locally compiled Swift helper (`xcrun swiftc`).
 They cache grayscale masks under the project's `cache/person-masks/` directory.
-Styles and effects that do not require cutouts can also run on other systems.
+The catalog reports cutout availability and explains missing requirements.
+On Linux, captions, styles and effects without a person mask remain available;
+automatic cutouts are unavailable.
 When FFmpeg has no libass, the compositor also draws the original captions.
 Yap Machine reuses an available local Whisper model, including Elgato VoiceSync
 models, and can fall back to CPU when Metal is unavailable.
@@ -25,9 +30,9 @@ and orbit use animated graphics rather than generated 3D footage.
 ## Commands
 
 ```sh
-yap-machine visuals-catalog
-yap-machine visuals v1 -p ~/Yap/my-video --preview --at 4
-yap-machine visuals v1 -p ~/Yap/my-video
+./scripts/yap-machine visuals-catalog
+./scripts/yap-machine visuals v1 -p ~/Yap/my-video --preview --at 4
+./scripts/yap-machine visuals v1 -p ~/Yap/my-video
 ```
 
 The Style & export workspace keeps the video visible beside independently scrolling
@@ -89,7 +94,7 @@ flagged for placement instead of drifting onto unrelated words. Repeated
 source ranges use `occurrence`. CLI effects may also use a phrase id as `at`.
 
 Additional fields: `text`, `items` (up to eight short lines), `values` (2–12
-numbers for a growth curve), and `asset` (an image/video path inside the
+numbers for a growth curve or exactly `[start, end]` for `count-up`), and `asset` (an image/video path inside the
 project). The desk uploads effect assets to `uploads/`. Asset video loops
 silently under the cut's audio. A zoom-through effect must span an actual cut.
 Effects apply in the list's stacking order; they can overlap, be moved, disabled
@@ -100,6 +105,24 @@ render, serializes renders per cut, and publishes a finished MP4 atomically.
 An unsuccessful render leaves the previous playable export intact. Project
 style defaults live in `style.json` as `visual_defaults` and do not copy timed
 effects into unrelated cuts.
+
+## Words behind a speaker and background replacement
+
+`text-behind-person` keeps the original video as the bottom layer, places your
+headline above it, then places the masked speaker on top. Supply `text` and the
+effect’s `at` and `duration`; `textSize` controls the relative headline size
+(0.06–0.30, default 0.16) and `textY` its vertical position (0.10–0.85,
+default 0.30). The desk exposes these controls and prepares the person mask.
+
+`green-screen` is the catalog ID for **Replace background**. Upload a picture or
+video as the effect’s `asset`. The compositor fills the background with that
+asset and puts the masked speaker in front; a physical green screen is not
+required. Video backdrops loop silently beneath the cut’s audio. The same
+composition is used for live preview and exported video.
+
+Masking runs locally. Hair, transparent objects, motion blur and overlapping
+people can reduce edge quality, so review the actual result before export.
+A mask failure is reported rather than presented as a completed cutout.
 
 ## Source and licenses
 

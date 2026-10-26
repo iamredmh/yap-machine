@@ -57,6 +57,7 @@ The agent starts mcp itself. A future package install can use yap-machine-desk
 instead of node desk/dist/cli/index.js; setup without --local retains that package launch.
 
   --home DIR     the workspace folder for your projects (default: $YAP_HOME or ~/Yap)
+                 with setup: save this workspace in the agent's MCP launch
   --no-browser   don't open the browser
   --lan          with serve: also open the desk to your phone on the local network (prints a QR code)
   --local        with setup: use this checkout's absolute Node and built CLI paths
@@ -151,7 +152,8 @@ export async function main(argv: string[], io: Io): Promise<number> {
     case "setup": {
       try {
         const only = selectedHarnesses(values.only);
-        const results = await setup(realSetupEnv(), { dryRun: values["dry-run"], local: values.local, only });
+        const workspace = values.home !== undefined || process.env.YAP_HOME ? home : undefined;
+        const results = await setup(realSetupEnv(), { dryRun: values["dry-run"], local: values.local, only, workspace });
         for (const r of results) io.out(`  ${r.status === "added" || r.status === "already" ? "✓" : r.status === "not-found" ? "·" : r.status === "would-add" ? "+" : "✗"} ${r.name}: ${r.detail}`);
         if (values["dry-run"]) io.out("\nDry run complete. No configuration or skill files were changed.");
         else if (results.some(r => r.status === "added" || r.status === "already")) io.out("\nStart a fresh agent session, then say: \"Edit my videos with Yap Machine\" and give the footage location.");

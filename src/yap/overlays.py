@@ -78,6 +78,13 @@ def resolve_caption_style(project: Project, timeline: dict, spec) -> dict:
         cs.update({k: v for k, v in spec.items() if k in cs})
     if cs.get("active") == "accent":
         cs["active"] = style["accent"]
+    # Share face-aware placement between libass, the live player and the
+    # compositor fallback. Previously only the libass file was adjusted.
+    face_bottoms = [s.get("face_bottom") for s in timeline.get("segments", []) if s.get("face_bottom")]
+    if tall and face_bottoms:
+        size = cs["size"] * timeline["width"]
+        need = max(face_bottoms) + FACE_GAP + cs["lines"] * size * 1.2 / timeline["height"]
+        cs["y"] = round(min(max(cs["y"], need), TALL_CAPTION_MAX_Y), 4)
     return cs
 
 
@@ -309,10 +316,6 @@ def build(project: Project, version: str, timeline: dict, edl: dict, lang: str |
     cs = dict(resolve_caption_style(project, timeline, spec) if spec else PRESETS["long"])
     size = cs["size"] * (W if H > W else H)
     tall = H > W
-    face_bottoms = [s.get("face_bottom") for s in timeline["segments"] if s.get("face_bottom")]
-    if tall and face_bottoms:
-        need = max(face_bottoms) + FACE_GAP + cs["lines"] * size * 1.2 / H
-        cs["y"] = round(min(max(cs["y"], need), TALL_CAPTION_MAX_Y), 4)
     words = output_words(project, timeline)
     groups = group_captions(words, cs["max_words"], cs["max_chars"])
     plain = []

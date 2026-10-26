@@ -23,6 +23,26 @@ describe('effects at the playhead', () => {
     });
 });
 describe('live styles preview', () => {
+    it('waits for the presenter mask and retains editable headline placement for the shared compositor', () => {
+        const behind = { id: 'behind', type: 'text-behind-person', at: 1, duration: 2, text: 'My story', textSize: .22, textY: .4 };
+        expect(livePlan(source, { ...settings, effects: [behind] }, 'demo', 'http://localhost').effects).toEqual([]);
+        const masked = { ...source, mask: { url: '/masks/', fps: 15, count: 120 } };
+        const p = livePlan(masked, { ...settings, preset: 'original', effects: [behind] }, 'demo', 'http://localhost');
+        expect(p.effects).toEqual([{ ...behind, items: [] }]);
+        expect(p.plate).toBe('http://localhost' + source.plate);
+        expect(p.captionStyle).toEqual(source.captionStyle);
+        expect(activeEffectsAtTime(p.effects, 1)).toHaveLength(1);
+        expect(activeEffectsAtTime(p.effects, 3)).toHaveLength(0);
+        for (const invalid of [{ text: ' ' }, { textSize: .8 }, { textY: NaN }, { enabled: false }])
+            expect(livePlan(masked, { ...settings, effects: [{ ...behind, ...invalid }] }, 'demo', 'http://localhost').effects).toEqual([]);
+    });
+    it('shows a count-up only after both real numbers are provided', () => {
+        const count = { id: 'count', type: 'count-up', at: 0, duration: 2, text: 'Members' };
+        for (const values of [[], [12], [0, 12, 24], [NaN, 12], [0, 1e13]])
+            expect(livePlan(source, { ...settings, effects: [{ ...count, values }] }, 'demo', 'http://localhost').effects).toEqual([]);
+        const p = livePlan(source, { ...settings, effects: [{ ...count, values: [0, 12.5] }] }, 'demo', 'http://localhost');
+        expect(p.effects[0]).toMatchObject({ ...count, values: [0, 12.5] });
+    });
     it('changes the composition props immediately while reusing the same undecorated cut', () => {
         const volt = livePlan(source, settings, 'demo', 'http://localhost:4690');
         const ledger = livePlan(source, { ...settings, preset: 'ledger', accent: '#D7261E' }, 'demo', 'http://localhost:4690');

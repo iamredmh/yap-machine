@@ -1,6 +1,7 @@
-import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
+import { mkdir, readFile, realpath, rename, unlink, writeFile, stat } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { watch } from "node:fs";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, extname, join, resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
@@ -8,7 +9,7 @@ import { z } from "zod";
 import type { Store } from "../core/store.js";
 import { DeskError, InvalidError, NotFoundError } from "../core/errors.js";
 import { listProjects, readLook, readProject, readVersion } from "../core/workspace.js";
-import { addLookChange, addMessage, addNote, expand, pickBatch, removeNote, reply, sendBatch, setNoteState, waiting } from "../core/batches.js";
+import { addLookChange, addMessage, addNote, expand, pickBatch, removeNote, reply, resumeBatch, sendBatch, setNoteState, waiting } from "../core/batches.js";
 import { runEngine } from "../core/engine.js";
 import { parseDoctor } from "../core/doctor.js";
 import { PeaksCache } from "./peaks.js";
@@ -251,10 +252,25 @@ export function createApp(store: Store, opts: AppOptions = {}) {
     const file = form.get("file");
     const proj = String(form.get("project") ?? "");
     if (!(file instanceof File)) throw new InvalidError("No file in the upload");
-    const safe = basename(file.name).replace(/[^\w. -]+/g, "_").slice(0, 120) || "file";
-    const dir = proj ? join(home, proj, "uploads") : join(store.dir, "uploads");
+    if (proj) {
+      if (!/^\w[\w.-]*$/.test(proj)) throw new InvalidError("Bad project name");
+      await project(proj);
+    }
+    const name = basename(file.name).replace(/[^\w. -]+/g, "_").slice(0, 120);
+    const safe = !name || name === "." || name === ".." ? "file" : name;
+    const root = await realpath(home);
+    const parent = await realpath(proj ? join(home, proj) : store.dir);
+    if (!parent.startsWith(root + sep)) throw new InvalidError("Uploads must stay inside this workspace");
+    const dir = join(parent, "uploads");
     await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, safe), Buffer.from(await file.arrayBuffer()));
+    if (await realpath(dir) !== dir) throw new InvalidError("The upload folder cannot be a symbolic link");
+    // Replace the directory entry atomically, never follow an existing file's symlink
+    // or modify another hard link to its bytes.
+    const pending = join(dir, `.upload-${randomUUID()}.tmp`);
+    try {
+      await writeFile(pending, Buffer.from(await file.arrayBuffer()), { flag: "wx" });
+      await rename(pending, join(dir, safe));
+    } finally { await unlink(pending).catch(() => {}); }
     return c.json({ path: proj ? `${proj}/uploads/${safe}` : `.yap-desk/uploads/${safe}`, name: safe, size: file.size });
   });
 
@@ -289,6 +305,11 @@ export function createApp(store: Store, opts: AppOptions = {}) {
       if (Date.now() >= deadline) return c.json({ batch: null });
       await new Promise<void>((ok) => { const w = () => { waiters.delete(w); ok(); }; waiters.add(w); setTimeout(w, Math.max(0, deadline - Date.now())); });
     }
+  });
+
+  app.post("/api/agent/resume", async (c) => {
+    const { batch } = z.object({ batch: z.string().min(1) }).parse(await c.req.json());
+    return c.json({ batch: await expand(store, await resumeBatch(store, batch)) });
   });
 
   app.post("/api/agent/reply", async (c) => {

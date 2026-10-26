@@ -4,6 +4,7 @@ yap_root="$(cd "$(dirname "$0")/.." && pwd)"
 if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
   echo 'Usage: ./scripts/start-desk [workspace-folder] [--no-browser]'
   echo 'Opens the local editor. Projects default to ~/Yap. Set YAP_PORT to choose a port.'
+  echo 'For a custom workspace, also run setup --local --only AGENT --home WORKSPACE to connect your agent to the same projects.'
   exit 0
 fi
 if [[ ! -x "$yap_root/.venv/bin/yap-machine" || ! -f "$yap_root/desk/dist/cli/index.js" || ! -d "$yap_root/studio/node_modules/@remotion/renderer" ]]; then

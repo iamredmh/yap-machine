@@ -5,9 +5,10 @@ import { LivePreview, StylePreview } from './LivePreview.js';
 import { activeEffectsAtTime, livePlan } from './live-plan.js';
 import { EditTimeline } from './EditTimeline.js';
 import { StudioIcon } from './StudioIcon.js';
+import { captionEditMessage, captionEditState, type CaptionEditState } from './caption-edit-state.js';
 import './visual-studio.css';
 import { changeHistory, clampTime, effectIssue, historyOf, recoverDraft, travelHistory, type History } from './studio-state.js';
-type Effect = { id: string; type: string; at: number; duration: number; strength: number; enabled: boolean; text: string; items: string[]; values: number[]; asset?: string; anchor?: { source: string; time: number; occurrence: number } };
+type Effect = { id: string; type: string; at: number; duration: number; strength: number; enabled: boolean; text: string; textSize?: number; textY?: number; items: string[]; values: number[]; asset?: string; anchor?: { source: string; time: number; occurrence: number } };
 type Settings = { preset: string; motion: string; accent?: string; effects: Effect[] };
 type Kind = { id: string; name: string; group: string; description: string; asset: boolean; matte: boolean };
 type Style = { id: string; name: string; summary: string; accent: string; background: string; font: string; signature: string };
@@ -17,11 +18,11 @@ const settingsOf = (c: any): Settings => ({ preset: c.preset ?? 'original', moti
 const same = (a: Settings, b: Settings) => JSON.stringify(a) === JSON.stringify(b);
 const storage = { get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } }, put: (k: string, v: any) => { try { v ? localStorage.setItem(k, JSON.stringify(v)) : localStorage.removeItem(k); } catch { /* browser storage optional */ } } };
 
-export function VisualStudio({ project, captions, initialVersion, onVersion }: { project: any; captions?: ComponentChildren; initialVersion?: string; onVersion?: (v: string) => void }) {
+export function VisualStudio({ project, captions, captionEdits = { queued: 0, withAgent: 0, saving: false }, initialVersion, onVersion }: { project: any; captions?: ComponentChildren; captionEdits?: CaptionEditState; initialVersion?: string; onVersion?: (v: string) => void }) {
   const cuts = [...project.shorts, ...project.versions].sort((a: any, b: any) => b.version.localeCompare(a.version, undefined, { numeric: true }));
   const [version, setVersion] = useState(cuts.some((c: any) => c.version === initialVersion) ? initialVersion! : cuts[0]?.version ?? '');
   useEffect(() => { if (version) onVersion?.(version); }, [version]);
-  const [catalog, setCatalog] = useState<{ styles: Style[]; effects: Kind[] } | null>(null);
+  const [catalog, setCatalog] = useState<{ styles: Style[]; effects: Kind[]; capabilities?: { personMatte: boolean; personMatteReason?: string | null } } | null>(null);
   const [data, setData] = useState<any>(null), [saved, setSaved] = useState<Settings>(blank);
   const [history, setHistory] = useState<History<Settings>>(historyOf(blank));
   const historyRef = useRef(history); historyRef.current = history;
@@ -47,12 +48,17 @@ export function VisualStudio({ project, captions, initialVersion, onVersion }: {
   const duration = data?.timeline.duration ?? 0;
   const boundaries = data?.timeline.segments.slice(1).map((s: any) => s.t) ?? [];
   const dirty = apply || !same(settings, saved);
+  const captionMessage = captionEditMessage(captionEdits);
+  const captionEditsRef = useRef(captionEdits); captionEditsRef.current = captionEdits;
   const rendering = job?.state === 'running';
   const activeDuration = previewMode === 'rendered' && renderedDuration ? renderedDuration : duration;
   const effect = settings.effects.find(e => e.id === selected);
   const kind = catalog?.effects.find(k => k.id === effect?.type);
-  const issues = settings.effects.map(e => ({ id: e.id, message: effectIssue(e, duration, boundaries) })).filter(i => i.message);
-  const matteNeeded = !!catalog?.effects.some(k => k.matte && settings.effects.some(e => e.enabled && e.type === k.id));
+  const matteUnavailable = catalog?.capabilities?.personMatte === false;
+  const matteReason = catalog?.capabilities?.personMatteReason ?? 'Automatic cutouts need macOS 12 or later and Apple’s Command Line Tools. Disable cutout effects to export on this computer.';
+  const issues = settings.effects.map(e => ({ id: e.id, message: effectIssue(e, duration, boundaries)
+    || (e.enabled && matteUnavailable && catalog?.effects.some(k => k.id === e.type && k.matte) ? matteReason : null) })).filter(i => i.message);
+  const matteNeeded = !matteUnavailable && !!catalog?.effects.some(k => k.matte && settings.effects.some(e => e.enabled && e.type === k.id));
   const assetKey = settings.effects.map(e => e.asset ?? '').join('|');
   const video = useRef<HTMLVideoElement>(null), side = useRef<HTMLDivElement>(null);
   const displaySettings = useMemo(() => compare ? { ...blank, motion: 'balanced' } : settings, [settings, compare]);
@@ -92,12 +98,17 @@ export function VisualStudio({ project, captions, initialVersion, onVersion }: {
     patch(id, { at: start, anchor: anchorFor(start), duration: Math.min(row.duration, duration - start) }); jump(start + .1);
   };
   const add = (k: Kind) => {
+    if (k.matte && matteUnavailable) return;
     let start = Math.min(time, Math.max(0, duration - .1)), length = Math.min(2.5, duration - start);
     if (k.id === 'zoom-through-cut' && boundaries.length) {
       const next = [...boundaries].sort((a: number, b: number) => Math.abs(a - time) - Math.abs(b - time))[0];
       start = Math.max(0, next - .5); length = Math.min(1, duration - start);
     }
     const e: Effect = { id: crypto.randomUUID(), type: k.id, at: start, duration: length, strength: 1, enabled: true, text: '', items: [], values: [], anchor: anchorFor(start) };
+    if (k.id === 'text-behind-person') {
+      e.textSize = .16; e.textY = .3;
+      e.text = (source?.words ?? []).filter((w: any) => w.end > start && w.start < start + length).slice(0, 3).map((w: any) => w.text).join(' ');
+    }
     set({ effects: [...historyRef.current.present.effects, e] }); chooseEffect(e);
   };
 
@@ -154,16 +165,26 @@ export function VisualStudio({ project, captions, initialVersion, onVersion }: {
       if (scopeRef.current !== requestScope) return null;
       setData({ ...data, config: r.config }); setSaved(settingsOf(r.config));
       if (generation === editGeneration.current) { const next = { ...historyRef.current, present: settingsOf(r.config) }; historyRef.current = next; setHistory(next); }
-      setApply(false); setNotice('Changes saved'); return r.config.rev;
+      setApply(false); setNotice('Style and effects saved'); return r.config.rev;
     } catch (e) { if (scopeRef.current === requestScope) setErr((e as Error).message); return null; }
     finally { setBusy(false); }
   };
   const render = async (preview: boolean) => {
+    const pendingMessage = captionEditMessage(captionEditsRef.current);
+    if (!preview && pendingMessage) { setErr(pendingMessage); selectPanel('captions'); return; }
     const generation = editGeneration.current, requestScope = scope;
     const rev = dirty || !data?.config.rev ? await save() : data.config.rev;
     if (rev == null || scopeRef.current !== requestScope) return;
     setErr(''); setBusy(true);
     try {
+      if (!preview) {
+        // Check again after saving, including changes sent from another tab.
+        // A batch waiting for the agent is still missing from this rendered cut.
+        const current = captionEditState(await api.get('/api/desk'), project.id);
+        const message = captionEditMessage(captionEditsRef.current) || captionEditMessage(current);
+        if (message) { setErr(message); selectPanel('captions'); return; }
+        if (scopeRef.current !== requestScope) return;
+      }
       const j = await api.post(`/api/projects/${project.id}/versions/${version}/visual-render`, { rev, preview, at: Math.min(time, Math.max(0, duration - .1)) });
       renderGenerations.current[j.id] = generation; if (scopeRef.current === requestScope) setJob(j);
     } catch (e) { if (scopeRef.current === requestScope) setErr((e as Error).message); }
@@ -187,16 +208,16 @@ export function VisualStudio({ project, captions, initialVersion, onVersion }: {
   const dismissEffect = (e: Effect) => { patch(e.id, { enabled: false }); setDismissedEffect(nameOf(e.type)); };
   const undoDismissal = () => { travel('undo'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.vs-preview-effects .vs-effect-off')?.focus()); };
   const discard = () => { set({ ...structuredClone(saved) }); setApply(false); setSelected(null); setNotice('Returned to saved settings. Undo to bring back your edits.'); };
-  const staleExport = exported && (dirty || exported.revision !== data?.config.rev || exported.timelineRev !== data?.timelineRev);
+  const staleExport = exported && (captionMessage || dirty || exported.revision !== data?.config.rev || exported.timelineRev !== data?.timelineRev);
   return <div class={'visual-studio' + (focus ? ' vs-focus' : '')} aria-label="Styles and effects">
     <header class="vs-heading">
       <div class="vs-title"><h1>Style your video<span>.</span></h1></div>
       <label class="vs-cut-label"><span class="sr">Cut</span><select aria-label="Cut for styles and effects" value={version} disabled={busy || uploading} onChange={e => setVersion(e.currentTarget.value)}>{cuts.map((c: any) => <option key={c.version} value={c.version}>{c.version} · {tc(c.duration)}{c.version.includes('.s') ? ' · Short' : ''}</option>)}</select></label>
       <span class="spacer"/>
       <div class="vs-history"><button class="vs-icon-btn" title="Undo (⌘/Ctrl Z)" aria-label="Undo edit" disabled={!history.past.length || !data} onClick={() => travel('undo')}><StudioIcon name="undo"/></button><button class="vs-icon-btn" title="Redo (⌘/Ctrl Shift Z)" aria-label="Redo edit" disabled={!history.future.length || !data} onClick={() => travel('redo')}><StudioIcon name="redo"/></button></div>
-      <span class={'vs-save-state' + (dirty ? ' is-dirty' : '')}><StudioIcon name={dirty ? 'dot' : 'check'}/>{dirty ? 'Unsaved changes' : 'All changes saved'}</span>
+      <span class={'vs-save-state' + (dirty || captionMessage ? ' is-dirty' : '')}><StudioIcon name={dirty || captionMessage ? 'dot' : 'check'}/>{captionMessage ? 'Caption changes pending' : dirty ? 'Unsaved style changes' : 'Style and effects saved'}</span>
       <button class="btn vs-save" disabled={busy || uploading || !dirty} onClick={() => save()}>Save</button>
-      <button class="btn primary vs-export" disabled={busy || rendering || uploading || !data} onClick={() => render(false)}>{rendering ? 'Exporting…' : 'Export video'}<StudioIcon name="export"/></button>
+      <button class="btn primary vs-export" disabled={busy || rendering || uploading || !data || !!captionMessage} title={captionMessage ?? undefined} aria-describedby={captionMessage ? 'vs-caption-pending' : undefined} onClick={() => render(false)}>{rendering ? 'Exporting…' : 'Export video'}<StudioIcon name="export"/></button>
     </header>
     {err && <div class="vs-error" role="alert"><span>{err}</span><button class="vs-icon-btn" aria-label="Dismiss error" onClick={() => setErr('')}>×</button></div>}
     {!data || !catalog ? <div class="empty vs-empty" role="status">{err ? 'The editor could not load this cut.' : 'Opening your video…'}</div> : <div class="vs-workspace">
@@ -237,7 +258,7 @@ export function VisualStudio({ project, captions, initialVersion, onVersion }: {
           </div>
         </div>
         <EditTimeline description={previewMode === "rendered" ? "Rendered video" : undefined} expanded={previewMode === 'live' && !focus && timing} key={scope} duration={activeDuration} time={time} fps={source?.fps ?? 30} effects={previewMode === 'live' ? settings.effects : []} boundaries={previewMode === 'live' ? boundaries : []} selected={selected} nameOf={nameOf} onSeek={seekPlayback} onSelect={chooseEffect} onAdd={() => selectPanel('effects')}/>
-        <div class={"vs-status" + (sourceError || rendering || notice || compare || issues.length ? " has-message" : "")} role="status"><span>{sourceError || (rendering ? 'Rendering your video. You can keep editing.' : notice || (compare ? 'Original cut. Your edits are kept.' : issues.length ? `${issues.length} effect${issues.length > 1 ? 's need' : ' needs'} content. Select an effect to finish it.` : 'Every change appears live.'))}</span>{result?.file && <button class="vs-text-btn" onClick={() => { if (previewMode === 'live') watchRendered(); else jump(time); }}>{previewMode === 'live' ? 'Watch last render' : 'Back to live preview'}<StudioIcon name="arrow"/></button>}</div>
+        <div class={"vs-status" + (sourceError || captionMessage || rendering || notice || compare || issues.length ? " has-message" : "")} role="status"><span>{sourceError || captionMessage || (rendering ? 'Rendering your video. You can keep editing.' : notice || (compare ? 'Original cut. Your edits are kept.' : issues.length ? `${issues.length} effect${issues.length > 1 ? 's need' : ' needs'} content. Select an effect to finish it.` : 'Style and effect changes appear live.'))}</span>{result?.file && <button class="vs-text-btn" onClick={() => { if (previewMode === 'live') watchRendered(); else jump(time); }}>{previewMode === 'live' ? 'Watch last render' : 'Back to live preview'}<StudioIcon name="arrow"/></button>}</div>
       </section>
       <aside class="vs-inspector" aria-label="Editing tools">
         <div class="vs-tabs" role="tablist" aria-label="Editing tools">{(['style', 'effects', 'captions', 'export'] as Panel[]).map(p => <button id={`vs-tab-${p}`} role="tab" aria-selected={panel === p} aria-controls={`vs-panel-${p}`} tabIndex={panel === p ? 0 : -1} onKeyDown={e => {
@@ -246,6 +267,7 @@ export function VisualStudio({ project, captions, initialVersion, onVersion }: {
           if (next >= 0) { e.preventDefault(); selectPanel(tabs[next]); document.getElementById(`vs-tab-${tabs[next]}`)?.focus(); }
         }} onClick={() => selectPanel(p)}>{({ style: 'Style', effects: 'Effects', captions: 'Captions', export: 'Export' })[p]}{p === 'effects' && settings.effects.length > 0 && <span>{settings.effects.length}</span>}</button>)}</div>
         <div class="vs-sidebar-body" ref={side} role="tabpanel" id={`vs-panel-${panel}`} aria-labelledby={`vs-tab-${panel}`}>
+          {captionMessage && <div class="vs-input-hint" id="vs-caption-pending" role="status"><p>{captionMessage}</p>{captionEdits.queued || captionEdits.saving ? panel !== 'captions' && <button class="btn small" onClick={() => selectPanel('captions')}>Review caption changes</button> : <a class="btn small" href="#review">Review updated cut</a>}</div>}
           {panel === 'style' && <>
             <div class="vs-section-intro"><span class="label">Your video. Your signature.</span><h2>Find your <em>look.</em></h2><p>Six distinct styles, previewed on your video.</p></div>
             <button class={'vs-original' + (settings.preset === 'original' ? ' chosen' : '')} aria-label="Original · Keep your current look" aria-pressed={settings.preset === 'original'} onClick={() => { if (settings.preset !== 'original') set({ preset: 'original', accent: undefined }); }}><StudioIcon name="film"/><span><strong>Original</strong><small>Keep your current look</small></span><StudioIcon name={settings.preset === 'original' ? 'check' : 'arrow'}/></button>
@@ -267,7 +289,15 @@ export function VisualStudio({ project, captions, initialVersion, onVersion }: {
               <div class="grid2"><label class="field">Start · seconds<input type="number" aria-label="Effect start" step="0.1" min="0" max={Math.max(0, duration - .1)} value={Number(effect.at.toFixed(2))} onChange={e => place(effect.id, Number(e.currentTarget.value))}/></label><label class="field">Duration · seconds<input type="number" aria-label="Effect duration" step="0.1" min="0.1" max={Math.min(60, duration - effect.at)} value={Number(effect.duration.toFixed(2))} onChange={e => patch(effect.id, { duration: Number(e.currentTarget.value) })}/></label></div>
               <div class="row"><button class="btn small" onClick={() => place(effect.id, time)}>Start at playhead</button><button class="btn ghost small" onClick={() => jump(effect.at + Math.min(.5, effect.duration / 2))}>Preview effect</button></div>
               <label class="field">Place on a spoken line<select aria-label="Place effect on a transcript line" value="" onChange={e => { if (e.currentTarget.value !== '') place(effect.id, Number(e.currentTarget.value)); }}><option value="">Choose a line…</option>{data.timeline.segments.map((s: any, i: number) => <option key={i} value={s.t}>{tc(s.t)} · {s.text?.slice(0, 85) || s.beat || 'Cut'}</option>)}</select></label>
-              <label class="field">Heading<input aria-label="Effect text" maxLength={180} value={effect.text} placeholder={effect.type === 'magazine-cover' ? 'Your magazine title' : 'Optional heading'} onInput={e => patch(effect.id, { text: e.currentTarget.value }, `text:${effect.id}`)}/></label>
+              <label class="field">{effect.type === 'text-behind-person' ? 'Words behind you' : effect.type === 'count-up' ? 'Number label' : 'Heading'}<input aria-label="Effect text" maxLength={180} value={effect.text} placeholder={effect.type === 'magazine-cover' ? 'Your magazine title' : effect.type === 'text-behind-person' ? 'Your headline' : effect.type === 'count-up' ? 'What does this number mean?' : 'Optional heading'} onInput={e => patch(effect.id, { text: e.currentTarget.value }, `text:${effect.id}`)}/></label>
+              {effect.type === 'text-behind-person' && <>
+                <label class="field">Text size <span class="mono fine">{Math.round((effect.textSize ?? .16) * 100)}%</span><input type="range" aria-label="Behind-you text size" min="0.06" max="0.3" step="0.01" value={effect.textSize ?? .16} onInput={e => patch(effect.id, { textSize: Number(e.currentTarget.value) }, `textSize:${effect.id}`)}/></label>
+                <label class="field">Vertical position <span class="mono fine">{Math.round((effect.textY ?? .3) * 100)}%</span><input type="range" aria-label="Behind-you text vertical position" min="0.1" max="0.85" step="0.01" value={effect.textY ?? .3} onInput={e => patch(effect.id, { textY: Number(e.currentTarget.value) }, `textY:${effect.id}`)}/><span class="fine">Move the headline across your shoulders or behind your head. Your room stays in the picture.</span></label>
+              </>}
+              {effect.type === 'count-up' && <div class="grid2">{(['Start number', 'Final total'] as const).map((label, index) => <label class="field" key={label}>{label}<input type="number" step="any" min="-1000000000000" max="1000000000000" aria-label={label} value={Number.isFinite(effect.values[index]) ? effect.values[index] : ''} placeholder={index === 0 ? '0' : 'Your total'} onInput={e => {
+                const values = [effect.values[0] ?? NaN, effect.values[1] ?? NaN]; values[index] = e.currentTarget.value.trim() ? Number(e.currentTarget.value) : NaN;
+                patch(effect.id, { values }, `count:${effect.id}:${index}`);
+              }}/></label>)}</div>}
               {['checklist', 'checklist-pop', 'headline-storm', 'magazine-cover'].includes(effect.type) && <label class="field">{effect.type === 'headline-storm' ? 'Headlines' : 'Items'} · one per line<textarea aria-label="Effect items" rows={4} value={effect.items.join('\n')} placeholder="Add your own words…" onInput={e => patch(effect.id, { items: e.currentTarget.value.split('\n') }, `items:${effect.id}`)}/></label>}
               {effect.type === 'growth-curve' && <label class="field">Chart values<input aria-label="Growth curve values" defaultValue={effect.values.join(', ')} placeholder="12, 18, 31, 45" onInput={e => patch(effect.id, { values: e.currentTarget.value.split(',').map(v => v.trim() ? Number(v.trim()) : NaN) }, `values:${effect.id}`)}/><span class="fine">Separate numbers with commas.</span></label>}
               {kind.asset && <label class="field vs-asset">{effect.type === 'green-screen' ? 'Background image or video' : 'Supporting image or video'}<input type="file" aria-label="Effect image or video" disabled={uploading} accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" onChange={async e => {
@@ -279,14 +309,15 @@ export function VisualStudio({ project, captions, initialVersion, onVersion }: {
                 finally { setUploading(false); }
               }}/><span class="fine">{uploading ? 'Adding your media…' : effect.asset ? 'Media added. Choose another file to replace it.' : 'Image or video · up to 200 MB'}</span></label>}
               {['snap-zoom', 'dolly-zoom', 'liquid-glass', 'digital-zoom', 'zoom-through-cut'].includes(effect.type) && <label class="field">Strength <span class="mono fine">{effect.strength.toFixed(2)}×</span><input type="range" aria-label="Effect strength" min="0.25" max="2" step="0.05" value={effect.strength} onInput={e => patch(effect.id, { strength: Number(e.currentTarget.value) }, `strength:${effect.id}`)}/></label>}
-              {kind.matte && <p class="fine">The presenter is separated automatically. This can take a moment the first time.</p>}
+              {kind.matte && <p class="fine" role="status">{matteUnavailable ? matteReason : sourceError ? sourceError : preparing ? 'Separating you from the background on this Mac… Your video stays here.' : source?.mask ? 'Presenter cutout ready. Fine-tune the effect in the live preview.' : 'Uses macOS 12+ person segmentation and Apple’s Command Line Tools. The first preview can take a moment.'}</p>}
               <button class="btn vs-remove" onClick={() => { set({ effects: settings.effects.filter(e => e.id !== effect.id) }); setSelected(null); }}>Remove effect</button>
             </div> : <>
               <div class="vs-section-intro"><span class="label">Make a moment</span><h2>Add a little emphasis.</h2><p class="muted small">Effects start at the playhead: <b class="mono">{tcLong(time)}</b>.</p></div>
               {settings.effects.length > 0 && <div class="vs-effect-list"><h3>In your video <span class="faint">{settings.effects.length}</span></h3>{settings.effects.map((e, i) => <div class="vs-effect-row" key={e.id}><input type="checkbox" aria-label={`Enable ${nameOf(e.type)}`} checked={e.enabled} onChange={ev => patch(e.id, { enabled: ev.currentTarget.checked })}/><button class="vs-effect-select" onClick={() => chooseEffect(e)}><b>{nameOf(e.type)}</b><span class={'fine' + (effectIssue(e, duration, boundaries) ? ' vs-needs' : '')}>{effectIssue(e, duration, boundaries) ? 'Needs content' : `${tcLong(e.at)} · ${e.duration.toFixed(1)} s`}</span></button><button class="vs-mini" aria-label={`Move ${nameOf(e.type)} earlier in stack`} disabled={i === 0} onClick={() => { const rows = [...settings.effects]; [rows[i - 1], rows[i]] = [rows[i], rows[i - 1]]; set({ effects: rows }); }}>↑</button><button class="vs-mini" aria-label={`Remove ${nameOf(e.type)}`} onClick={() => set({ effects: settings.effects.filter(x => x.id !== e.id) })}>×</button></div>)}</div>}
               <label class="vs-search"><span class="sr">Search effects</span><input type="search" aria-label="Search effects" placeholder="Search effects…" value={search} onInput={e => setSearch(e.currentTarget.value)}/></label>
               <div class="vs-filters" role="group" aria-label="Effect groups">{['All', 'Emphasis', 'Explain', 'Layouts', 'Motion', 'Transform'].map(g => <button aria-pressed={filter === g} onClick={() => setFilter(g)}>{g}</button>)}</div>
-              <div class="vs-effect-cards">{ordered.map(k => <button key={k.id} class="vs-effect-card" aria-label={`Add ${k.name}`} onClick={() => add(k)}><span class={'vs-effect-icon fx-' + k.id} aria-hidden="true">{({ Emphasis: '✦', Explain: '☑', Layouts: '▣', Motion: '↗', Transform: '◈' } as Record<string, string>)[k.group]}</span><strong>{k.name}</strong><span class="small muted">{k.description}</span><span class="vs-effect-tag">{k.asset ? 'Add media' : ['checklist', 'checklist-pop', 'headline-storm', 'growth-curve'].includes(k.id) ? 'Add your content' : k.matte ? 'Auto cutout' : 'Ready to use'}</span></button>)}</div>
+              {matteUnavailable && ordered.some(k => k.matte) && <p class="fine" role="status">{matteReason}</p>}
+              <div class="vs-effect-cards">{ordered.map(k => <button key={k.id} class="vs-effect-card" aria-label={`Add ${k.name}`} disabled={k.matte && matteUnavailable} onClick={() => add(k)}><span class={'vs-effect-icon fx-' + k.id} aria-hidden="true">{({ Emphasis: '✦', Explain: '☑', Layouts: '▣', Motion: '↗', Transform: '◈' } as Record<string, string>)[k.group]}</span><strong>{k.name}</strong><span class="small muted">{k.description}</span><span class="vs-effect-tag">{k.matte && matteUnavailable ? 'Cutout unavailable' : k.asset ? 'Add media' : k.matte ? 'Auto cutout · Mac' : ['checklist', 'checklist-pop', 'headline-storm', 'growth-curve', 'count-up'].includes(k.id) ? 'Add your content' : 'Ready to use'}</span></button>)}</div>
               {!ordered.length && <div class="empty"><p>No effects match “{search}”.</p><button class="btn small" onClick={() => { setSearch(''); setFilter('All'); }}>Show all effects</button></div>}
             </>}
           </>}
@@ -295,14 +326,14 @@ export function VisualStudio({ project, captions, initialVersion, onVersion }: {
             <div class="vs-section-intro"><span class="label">Ready when you are</span><h2>Make it shareable.</h2><p class="muted small">Export your complete video, with the current style and effects.</p></div>
             <div class="vs-export-summary"><span>Video</span><b>{version} · {tc(duration)}</b><span>Format</span><b>{data.timeline.width} × {data.timeline.height} · MP4</b><span>Style</span><b>{style?.name ?? 'Original'}</b><span>Effects</span><b>{settings.effects.filter(e => e.enabled).length} active</b></div>
             {issues.length > 0 && <p class="vs-input-hint">Finish {issues.length} effect{issues.length > 1 ? 's' : ''} before exporting. <button class="btn small" onClick={() => chooseEffect(settings.effects.find(e => e.id === issues[0].id)!)}>Fix effect</button></p>}
-            <button class="btn primary vs-wide-btn" disabled={busy || rendering || uploading} onClick={() => render(false)}>{rendering ? 'Rendering…' : 'Export full video'}<StudioIcon name="export"/></button>
+            <button class="btn primary vs-wide-btn" disabled={busy || rendering || uploading || !!captionMessage} aria-describedby={captionMessage ? 'vs-caption-pending' : undefined} onClick={() => render(false)}>{rendering ? 'Rendering…' : 'Export full video'}<StudioIcon name="export"/></button>
             <div class="vs-render-check"><h3>Check a short section first</h3><label class="field">Start at · seconds<input aria-label="Preview start in seconds" type="number" min="0" step="0.1" max={Math.max(0, duration - .1)} value={Number(time.toFixed(2))} onChange={e => jump(Number(e.currentTarget.value))}/></label><button class="btn" disabled={busy || rendering || uploading} onClick={() => render(true)}>Render 6 seconds</button></div>
             {rendering && <div class="vs-render-progress" role="status"><div class="vs-progress-line"/><b>Rendering {job.preview ? 'your preview' : 'your export'}…</b><p class="fine">You can continue editing while this finishes.</p><details><summary>Render details</summary><pre class="log">{job.lines?.slice(-8).join('\n') || 'Preparing…'}</pre></details></div>}
             {exported && <div class="vs-export-ready"><span class="label">{staleExport ? 'Previous export' : 'Your video is ready'}</span><h3>{project.name}</h3><p class="fine">{staleExport ? 'Your latest edits are not in this file. Export again to include them.' : `${version} · ${tc(duration)} · MP4`}</p><a class="btn primary vs-wide-btn" href={media(project.id, exported.file)} download={`${project.name}-${version}-styled.mp4`}>Download {staleExport ? 'previous export' : 'video'}<StudioIcon name="download"/></a></div>}
             {result?.file && <button class="btn" onClick={watchRendered}>Watch {result.preview ? 'rendered preview' : 'last export'}</button>}
           </>}
         </div>
-        <footer class="vs-inspector-footer"><div class="vs-mobile-history"><button class="vs-icon-btn" aria-label="Undo edit" disabled={!history.past.length || !data} onClick={() => travel('undo')}><StudioIcon name="undo"/></button><button class="vs-icon-btn" aria-label="Redo edit" disabled={!history.future.length || !data} onClick={() => travel('redo')}><StudioIcon name="redo"/></button></div><span class="fine">{dirty ? 'Edits kept in this browser until saved.' : 'Saved to this project.'}</span><button class="btn ghost small" disabled={!dirty || busy} onClick={discard}>Reset</button></footer>
+        <footer class="vs-inspector-footer"><div class="vs-mobile-history"><button class="vs-icon-btn" aria-label="Undo edit" disabled={!history.past.length || !data} onClick={() => travel('undo')}><StudioIcon name="undo"/></button><button class="vs-icon-btn" aria-label="Redo edit" disabled={!history.future.length || !data} onClick={() => travel('redo')}><StudioIcon name="redo"/></button></div><span class="fine">{dirty ? 'Style edits kept in this browser until saved.' : 'Style and effects saved to this project.'}</span><button class="btn ghost small" disabled={!dirty || busy} onClick={discard}>Reset</button></footer>
       </aside>
     </div>}
   </div>;

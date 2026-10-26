@@ -58,6 +58,22 @@
   ],
   "effects": [
     {
+      "id": "text-behind-person",
+      "name": "Words behind you",
+      "group": "Emphasis",
+      "description": "Put a headline behind you while keeping your original background.",
+      "asset": false,
+      "matte": true
+    },
+    {
+      "id": "count-up",
+      "name": "Count up",
+      "group": "Explain",
+      "description": "Bring a real number to life, from a starting value to your total.",
+      "asset": false,
+      "matte": false
+    },
+    {
       "id": "orbit",
       "name": "Orbit",
       "group": "Emphasis",

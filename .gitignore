@@ -3,13 +3,13 @@ __pycache__/
 *.pyc
 .DS_Store
 *.egg-info/
-desk/node_modules/
+desk/node_modules
 desk/dist/
 desk/web-dist/
 .evals-cache/
 evals/results/
 
-studio/node_modules/
+studio/node_modules
 studio/.cache/
 
 # Local projects, credentials and generated release files.
@@ -20,3 +20,7 @@ studio/.cache/
 *.tgz
 dist/
 .pytest_cache/
+
+# Local marketing/deployment previews are separate from the installable app.
+/website/
+/caffeine-deploy/

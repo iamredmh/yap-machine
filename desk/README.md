@@ -30,8 +30,10 @@ add `--home /path/to/workspace` if you selected a custom workspace.
 See the root README for dependencies, updates and platform support.
 
 Projects live in a workspace folder (`$YAP_HOME`, default `~/Yap`). The desk reads each
-project's files (cuts, checks, renders) and writes only its own notes, chat and batches
-in `<workspace>/.yap-desk/`, plus your look changes into `style.json` / `people.json`.
+project's files (cuts, checks and renders). Notes, chat, batches, browser imports and
+review caches live in `<workspace>/.yap-desk/`. Uploaded effect assets, look changes
+and saved visual settings live inside the selected project; preparation and export
+write derived files there too. Originals imported by folder stay in that folder.
 
 On Review the timeline shows the sound as a waveform (it needs `ffmpeg`, which the engine
 already uses) and the keyboard works: Space or K play, J and L go back and forward at 1x, 2x
@@ -85,6 +87,13 @@ bring in a folder, stop the desk, run the engine, or act as the agent. Nothing i
 stopping the desk, or `node desk/dist/cli/index.js phone off`, ends it. The link is plain http, so use home or
 trusted Wi-Fi. If your Mac asks whether `node` may accept incoming connections, choose Allow.
 
-Agent tools: `yap_open`, `yap_new_project`, `yap_status`, `yap_next_batch`, `yap_reply`.
+Agent tools: `yap_open`, `yap_new_project`, `yap_status`, `yap_next_batch`, `yap_resume_batch`, `yap_reply`.
+
+If an agent disconnects after picking up notes, `yap_status` exposes the unfinished
+batch in `pickedBatches`. Once that session has stopped, the agent can call
+`yap_resume_batch` with the same batch ID, inspect the existing cuts and replies,
+and continue. Recovery preserves note IDs and previous replies. It does not
+requeue active work; normal polling only picks up waiting batches, and completed
+batches cannot be resumed.
 
 The desk uses a light theme. Built on the Rushes core (see [NOTICE](NOTICE)).
