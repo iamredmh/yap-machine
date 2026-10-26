@@ -17,6 +17,24 @@ Style Studio engine — https://github.com/kelano86/style-studio-engine
   Style packs, rendering primitives, scenes, typography and font assets in studio/.
   Upstream license: studio/STYLE-STUDIO-LICENSE. Fonts retain their OFL notices.
 
+Brand Nat design adaptation
+  The configurable Yap Machine looks and their controls are newly written implementations informed
+  by a user-supplied Brand Nat Style Pack. No general redistribution license was
+  supplied for that guide. Its original SKILL, guide code, full prose and sketches
+  are not included. docs/brand-nat.md is an original support summary, not a copy of
+  the full guide or a claim that all 105 reference recipes are implemented.
+  No affiliation or endorsement is implied.
+
+Inter Tight and Instrument Serif
+  Copyright 2022 The Inter Project Authors (https://github.com/rsms/inter-tight).
+  Copyright 2022 The Instrument Serif Project Authors
+    (https://github.com/Instrument/instrument-serif).
+  SIL Open Font License 1.1. The supplied font binaries are retained unchanged;
+  full notices from the official Google Fonts repository and their provenance
+  manifest are in studio/public/fonts/brand-nat/. These font licenses do not
+  license the surrounding Brand Nat guide. Existing licensed Inter, handwriting
+  and supporting serif fonts are reused; SF Pro is not bundled.
+
 Remotion — https://www.remotion.dev
   The renderer is installed from npm. Remotion and @remotion/player are also
   bundled into the Desk's live-preview browser build. They use the Remotion

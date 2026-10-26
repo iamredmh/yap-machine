@@ -264,7 +264,8 @@ taking a suggestion.
 ## Styles and timed effects
 
 Once the cut is resolved, save `visuals.json` beside its EDL. In the desk,
-**Style & export** offers six Style Studio packs and 22 timed effects. The editor
+**Style & export** offers six Yap Machine looks and 20 effect choices, with
+22 stored variants. The editor
 can choose an accent and motion strength, place effects on transcript lines,
 add text/items/real chart values or supporting assets, save, preview and export.
 
@@ -275,7 +276,8 @@ yap-machine visuals v1 -p ~/Yap/my-video
 ```
 
 Read `studio/README.md` in the source checkout for the complete settings format
-and requirements. Use `preset` original/volt/ledger/sketch/terminal/glass/pop,
+and requirements. Use `preset` original or a visible style ID from the catalog;
+`legacyStyles` retains old saved presets. Keep existing settings when revising a cut. Use
 `motion` subtle/balanced/bold, and an `effects` array. Each effect has a unique
 `id`, catalog `type`, output `at` in seconds, `duration` and `strength` (0.25–2).
 An optional source `anchor: {source, time, occurrence}` takes precedence and
@@ -292,14 +294,14 @@ template layouts target 9:16 portrait. All rendering stays on this computer.
 
 Two direct templates work on the creator's original video:
 
-- **Words behind you** (`text-behind-person`) layers the original video, a
+- **Title behind you** (`text-behind-person`) layers the original video, a
   headline, and an automatically masked copy of the presenter. The room stays
   visible. Supply nonempty `text`; optional `textSize` is a fraction of the
   short canvas side (0.06–0.30, default 0.16) and `textY` is a fraction down the
   picture (0.10–0.85, default 0.30). Captions remain above the finished picture.
   Choose a short phrase from the creator's words and check the face/shoulder
   overlap in a rendered preview. No external background asset is needed.
-- **Count up** (`count-up`) uses exactly two finite `values`: `[start, end]`,
+- **Counter** (`count-up`) uses exactly two finite `values`: `[start, end]`,
   each between −1 trillion and 1 trillion. `text` is an optional descriptive
   label. Numbers can be fractional, negative or descending; the animation
   reaches the exact total before it exits. The editor asks for both numbers
@@ -317,3 +319,29 @@ Styled previews/exports are separate MP4s. Inspect the result for caption
 readability, foreground edges and timing. Save the six-second preview first
 when trying a new effect, then render the final video. Keep the original EDL
 and source footage editable.
+
+### Treatment requests
+
+Use the six product names: Clean, Editorial, Bold, Handwritten, Glass and
+Terminal. The first four expose caption/title/layout/finish controls. The
+`brandNat` object and `nat-*` IDs are saved-format compatibility names, not a
+separate collection. Read `docs/brand-nat.md` in the checkout for mappings and
+the 105-code design reference. It distinguishes native controls from recipes
+requiring assets, editorial work or new graphics. Use catalog defaults; preserve
+legacy preset/type IDs and custom fields on existing cuts.
+
+Checklist's Card/Full-screen modes retain `checklist-pop`/`checklist`; Zoom's
+Punch-in/Camera modes retain `snap-zoom`/`digital-zoom`. Changing the UI name must
+not change a saved effect's timing, anchor, text, values or stacking order.
+`visuals VERSION -p PROJECT --settings FILE` renders a snapshot without saving it.
+
+Optional `emphasis` is a comma-separated list of selected words (up to 160
+characters). Matching words end their caption phrase. Blank or omitted emphasis
+preserves existing phrase grouping and final-word emphasis; it is not semantic
+keyword selection. Blank titles use actual opening words. Caption position is a face-aware
+preference, not a guarantee that every logo or baked caption is clear. H1 and
+G6 need a local person mask. X1 needs reel cards with person occlusion, P3 needs
+a behind-person counter, and X17 needs glass lettering; Floating icons, Counter
+and Glass lens do not provide those exact treatments. Sound recipes require an
+additional audio pipeline. Keep the source guide and its code private unless
+redistribution rights are supplied.

@@ -1,0 +1,368 @@
+{
+  "id": "nat-bold",
+  "name": "Nat Bold",
+  "description": "One bold word at a time on a butter-yellow canvas.",
+  "fonts": [
+    {
+      "family": "Inter Tight",
+      "file": "fonts/brand-nat/InterTight-800-normal.woff2",
+      "weight": "800"
+    },
+    {
+      "family": "Instrument Serif",
+      "file": "fonts/brand-nat/InstrumentSerif-400-italic.woff2",
+      "weight": "400",
+      "style": "italic"
+    },
+    {
+      "family": "Inter",
+      "file": "fonts/volt/Inter-500.woff2",
+      "weight": "500"
+    },
+    {
+      "family": "Inter",
+      "file": "fonts/volt/Inter-600.woff2",
+      "weight": "600"
+    },
+    {
+      "family": "Inter",
+      "file": "fonts/volt/Inter-700.woff2",
+      "weight": "700"
+    },
+    {
+      "family": "Caveat",
+      "file": "fonts/sketch/Caveat-700.woff2",
+      "weight": "700"
+    },
+    {
+      "family": "EB Garamond",
+      "file": "fonts/ledger/EBGaramond-400.woff2",
+      "weight": "400"
+    }
+  ],
+  "type": {
+    "display": {
+      "family": "Inter Tight",
+      "fallback": "sans-serif",
+      "weight": 800,
+      "style": "normal",
+      "tracking": 0,
+      "case": "none",
+      "metrics": "inter-tight-800",
+      "layout": {
+        "match": "none",
+        "fit": "cap",
+        "fitScale": 1,
+        "measure": null,
+        "lineHeight": null
+      }
+    },
+    "accent": {
+      "family": "Instrument Serif",
+      "fallback": "serif",
+      "weight": 400,
+      "style": "italic",
+      "tracking": 0,
+      "case": "none",
+      "metrics": "instrument-serif-400-italic",
+      "layout": {
+        "match": "none",
+        "fit": "cap",
+        "fitScale": 1,
+        "measure": null,
+        "lineHeight": null
+      }
+    },
+    "body": {
+      "family": "Inter",
+      "fallback": "sans-serif",
+      "weight": 500,
+      "style": "normal",
+      "tracking": 0,
+      "case": "none",
+      "metrics": "inter-500",
+      "layout": {
+        "match": "none",
+        "fit": "cap",
+        "fitScale": 1,
+        "measure": null,
+        "lineHeight": null
+      }
+    },
+    "label": {
+      "family": "Caveat",
+      "fallback": "cursive",
+      "weight": 700,
+      "style": "normal",
+      "tracking": 0,
+      "case": "none",
+      "metrics": "caveat-700",
+      "layout": {
+        "match": "none",
+        "fit": "cap",
+        "fitScale": 1,
+        "measure": null,
+        "lineHeight": null
+      }
+    },
+    "code": {
+      "family": "EB Garamond",
+      "fallback": "serif",
+      "weight": 400,
+      "style": "normal",
+      "tracking": 0,
+      "case": "none",
+      "metrics": "eb-garamond-400",
+      "layout": {
+        "match": "none",
+        "fit": "cap",
+        "fitScale": 1,
+        "measure": null,
+        "lineHeight": null
+      }
+    }
+  },
+  "palette": {
+    "base": "#172126",
+    "panel": "#263137",
+    "surface": "#354149",
+    "line": "#78858B",
+    "faint": "#6E6E6E",
+    "muted": "#9A9A9A",
+    "text": "#FFFFFF",
+    "textSoft": "#E1E8E9",
+    "ink": "#29251F",
+    "inkSoft": "#6E665C",
+    "win": "#F7D85B",
+    "friction": "#C87965",
+    "extended": {
+      "butter": "#F6DE90",
+      "ice": "#D8F4FA",
+      "blue": "#ACCBEC"
+    },
+    "heroRotation": [
+      "win"
+    ]
+  },
+  "grounds": {
+    "dark": {
+      "colour": "#172126",
+      "texture": null,
+      "glows": [],
+      "pattern": null,
+      "vignette": null
+    },
+    "light": {
+      "colour": "#F7D85B",
+      "texture": null,
+      "glows": [],
+      "pattern": null,
+      "vignette": null
+    }
+  },
+  "cards": {
+    "dark": {
+      "top": "#1C1C1C",
+      "fill": "#1C1C1C",
+      "bottom": "#1C1C1C",
+      "up": "#262626",
+      "up2": "#303030",
+      "radius": 4,
+      "lightCatch": 0,
+      "shadow": {
+        "dx": 0,
+        "dy": 2,
+        "blur": 0,
+        "colour": "#000000",
+        "alpha": 0.4
+      },
+      "ring": {
+        "width": 1,
+        "colour": "rgba(255,255,255,0.16)"
+      }
+    },
+    "light": {
+      "top": "#FFFFFF",
+      "fill": "#FFFFFF",
+      "bottom": "#FFFFFF",
+      "up": "#F1EDE4",
+      "up2": "#E7E1D5",
+      "radius": 4,
+      "lightCatch": 0,
+      "shadow": {
+        "dx": 0,
+        "dy": 3,
+        "blur": 0,
+        "colour": "#141414",
+        "alpha": 0.08
+      },
+      "ring": {
+        "width": 1,
+        "colour": "rgba(20,20,20,0.22)"
+      }
+    }
+  },
+  "subtitles": {
+    "voice": "body",
+    "weight": 600,
+    "size": 62,
+    "case": "none",
+    "tracking": 0,
+    "colour": {
+      "dark": "#F2EEE6",
+      "light": "#141414"
+    },
+    "outline": null,
+    "shadow": {
+      "dark": null,
+      "light": null
+    },
+    "backing": {
+      "kind": "none",
+      "dark": "transparent",
+      "light": "transparent"
+    },
+    "key": {
+      "voice": "accent",
+      "weight": 400,
+      "style": "italic",
+      "size": 90,
+      "colour": "hero",
+      "box": null,
+      "mark": "underline"
+    },
+    "enter": "cut",
+    "laneY": 1480,
+    "words": [
+      3,
+      7
+    ]
+  },
+  "composition": {
+    "ground": "light",
+    "align": "center",
+    "margin": 76,
+    "top": 150,
+    "gap": {
+      "eyebrow": 56,
+      "tagline": 30,
+      "object": 90
+    }
+  },
+  "presenter": {
+    "layouts": {
+      "full": true,
+      "halfBand": true,
+      "tile": true
+    },
+    "openOn": [
+      "full"
+    ],
+    "halfBand": {
+      "feather": 0,
+      "rule": {
+        "width": 3,
+        "colour": "ink"
+      }
+    },
+    "tile": {
+      "radius": 4,
+      "ring": {
+        "width": 3,
+        "colour": "#141414"
+      },
+      "shadow": "0 3px 0 rgba(20,20,20,0.12)"
+    },
+    "rim": null
+  },
+  "transitions": {
+    "cut": true,
+    "ease": {
+      "enabled": true,
+      "dy": 24,
+      "sink": 0.01,
+      "frames": 12
+    },
+    "zoomThrough": {
+      "enabled": false,
+      "frames": 6
+    },
+    "flash": {
+      "enabled": false,
+      "colour": "win",
+      "frames": 2
+    },
+    "wipe": {
+      "enabled": true,
+      "frames": 16
+    }
+  },
+  "motion": {
+    "reveal": {
+      "bezier": [
+        0.25,
+        0.1,
+        0.25,
+        1
+      ],
+      "frames": 24,
+      "stagger": 6
+    },
+    "leave": [
+      0.42,
+      0,
+      1,
+      1
+    ],
+    "glide": [
+      0.65,
+      0,
+      0.35,
+      1
+    ],
+    "spring": {
+      "w": 0.28,
+      "z": 0.85
+    },
+    "punch": {
+      "amount": 0.04,
+      "frames": 8
+    },
+    "rise": 24
+  },
+  "pace": {
+    "short": {
+      "secondsPerChange": [
+        3,
+        5
+      ],
+      "punchIns": "payoffs"
+    },
+    "long": {
+      "secondsPerChange": [
+        7,
+        9
+      ]
+    },
+    "endHoldMax": 3,
+    "wordsPerMinute": [
+      150,
+      180
+    ]
+  },
+  "scenes": {
+    "brings": [],
+    "avoid": []
+  },
+  "signature": {
+    "surface": "solid",
+    "mark": "underline",
+    "icons": "line",
+    "reveal": "rise",
+    "chrome": "none",
+    "edge": "straight",
+    "tilt": 0,
+    "rough": 0,
+    "boil": 0
+  }
+}

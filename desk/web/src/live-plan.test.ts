@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { activeEffectsAtTime, livePlan } from './live-plan.js';
 import { changeHistory, historyOf, travelHistory } from './studio-state.js';
+import { brandNatDefaults, natPresets } from '../../src/core/brand-nat.js';
 const source = { plate: '/media/demo/renders/__live-v1-a.mp4', width: 540, height: 960, fps: 30, duration: 8, words: [{ text: 'Hello', start: 0, end: 1 }], captionStyle: { font: 'Inter' }, accent: '#112233', cutBoundaries: [2, 4], mask: null };
 const settings = { preset: 'volt', accent: '#FFE600', motion: 'balanced', effects: [] };
 describe('effects at the playhead', () => {
@@ -23,6 +24,27 @@ describe('effects at the playhead', () => {
     });
 });
 describe('live styles preview', () => {
+    it('uses each native Brand Nat pack and recipe in live previews and uncustomised thumbnail props', () => {
+        for (const preset of natPresets) {
+            const p = livePlan(source, { ...settings, preset }, 'demo', 'http://localhost');
+            expect(p.pack).toBe(preset);
+            expect(p.brandNat).toEqual(brandNatDefaults[preset]);
+            expect(p.captionStyle).toBeNull();
+            expect(p.words).toEqual(source.words);
+            expect(p.plate).toBe('http://localhost' + source.plate);
+        }
+    });
+    it('keeps custom title, caption and mask choices intact until real cutout media is ready', () => {
+        const brandNat = { ...brandNatDefaults['nat-editorial'], title: 'Make this yours', subtitle: 'Start today', hook: 'H1', caption: 'C3', layout: 'L6', finish: 'G6', position: 'top' };
+        const edited = { ...settings, preset: 'nat-editorial', brandNat };
+        const waiting = livePlan(source, edited, 'demo', 'http://localhost');
+        expect(waiting.brandNat).toEqual(brandNat);
+        expect(waiting.mask).toBeNull();
+        const ready = livePlan({ ...source, mask: { fps: 15, count: 120, url: '/masks/' } }, edited, 'demo', 'http://localhost');
+        expect(ready.brandNat).toEqual(brandNat);
+        expect(ready.mask.url).toBe('http://localhost/masks/');
+        expect(livePlan({ ...source, brandNat }, settings, 'demo', 'http://localhost').brandNat).toBeUndefined();
+    });
     it('waits for the presenter mask and retains editable headline placement for the shared compositor', () => {
         const behind = { id: 'behind', type: 'text-behind-person', at: 1, duration: 2, text: 'My story', textSize: .22, textY: .4 };
         expect(livePlan(source, { ...settings, effects: [behind] }, 'demo', 'http://localhost').effects).toEqual([]);

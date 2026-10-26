@@ -115,6 +115,28 @@
 .vs-style-dot { height:7px; width:7px; border-radius:50%; border:1px solid #0002; }
 .vs-style-description { font-size:12px; color:var(--ink-3); line-height:1.4; margin-top:3px; }
 .vs-thumb-loading { height:100%; display:grid; place-items:center; font:italic 22px Georgia,serif; color:white; }
+.vs-style-family { display:flex; flex-direction:column; gap:16px; flex:none; }
+.vs-style-family > header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.vs-style-family h3 { margin:0; font-size:17px; font-weight:600; letter-spacing:-.025em; }
+.vs-style-family h3 > span { display:block; margin-top:5px; color:var(--ink-3); font-size:12px; font-weight:400; letter-spacing:0; line-height:1.5; }
+.vs-nat-family { padding:18px 14px; margin-inline:-6px; border:1px solid #e4ddd0; border-radius:14px; background:linear-gradient(145deg,#faf7ef,#fffdf9); }
+.vs-nat-family .label { display:block; margin-bottom:7px; color:#8b6845; font-size:10px; letter-spacing:.1em; }
+.vs-nat-family h3 { font-size:23px; letter-spacing:-.04em; }
+.vs-family-mark { font:italic 34px/1 Georgia,serif; color:#997b55; padding:9px 6px; }
+.vs-nat-family .vs-style-description { font-size:11px; }
+.vs-nat-customise { display:flex; flex-direction:column; gap:20px; padding:18px; border:1px solid #e3dfd4; border-radius:12px; background:#fffdf9; flex:none; }
+.vs-nat-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-bottom:14px; border-bottom:1px solid #ebe6db; }
+.vs-nat-heading h3 { font-size:19px; font-weight:600; letter-spacing:-.03em; margin:5px 0 0; }
+.vs-nat-heading .label { font-size:10px; color:#8b6845; }
+.vs-nat-customise .field { gap:8px; min-width:0; }
+.vs-nat-field select,.vs-nat-copy input { width:100%; min-width:0; }
+.vs-nat-field .fine,.vs-nat-copy > .fine { line-height:1.5; color:var(--ink-3); }
+.vs-nat-label { display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:500; }
+.vs-nat-label small { padding:2px 5px; border-radius:4px; background:#f3eee4; font-size:10px; font-weight:400; color:#816c51; }
+.vs-nat-label small:empty { display:none; }
+.vs-nat-copy { display:flex; flex-direction:column; gap:14px; padding:15px; margin-top:-8px; background:#f6f3ed; border-radius:8px; }
+.vs-nat-copy > button { align-self:flex-start; padding-left:0; }
+.vs-nat-matte { margin:0; border-top:1px solid #ebe6db; padding-top:14px; line-height:1.6; }
 .vs-customise { border:1px solid var(--line); border-radius:10px; background:#faf9f6; flex:none; }
 .vs-customise summary { min-height:50px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:13px; font-weight:500; list-style:none; }
 .vs-customise summary::-webkit-details-marker { display:none; }.vs-customise summary > span { display:flex; align-items:center; gap:9px; }.vs-customise .vs-icon { width:17px; height:17px; }.vs-customise[open] summary > .vs-icon { transform:rotate(180deg); }
@@ -189,3 +211,6 @@
  .vs-effect-off { width:36px; }
  .vs-effect-dismissed .vs-text-btn { min-height:36px; }
 }
+
+/* Archived looks stay editable without duplicating the starting-look picker. */
+.vs-saved-look{display:grid;gap:5px;padding:14px 16px;background:var(--vs-paper,#f6f3ed);border:1px solid var(--vs-line,#dedfd5);border-radius:10px;font-size:14px;line-height:1.45}.vs-saved-look span{color:var(--muted,#65695f)}

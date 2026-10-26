@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { livePlan } from './live-plan.js';
+import type { BrandNat } from '../../src/core/brand-nat.js';
 export function LivePreview({ source, settings, project, seek, onTime, onCommand, transport, onPlayback, onReady }: {
   source: any; settings: any; project: string; seek: { time: number; id: number }; onTime: (time: number) => void; transport: { action: string; id: number }; onPlayback: (state: { playing: boolean; muted: boolean }) => void; onReady: (ready: boolean) => void; onCommand: (command: 'undo' | 'redo' | 'save') => void;
 }) {
@@ -47,9 +48,9 @@ export function LivePreview({ source, settings, project, seek, onTime, onCommand
 }
 
 /** Static samples use the same compositor and the cut's own footage/words. */
-export function StylePreview({ source, preset, accent, project }: { source: any; preset: string; accent: string; project: string }) {
+export function StylePreview({ source, preset, accent, project, brandNat }: { source: any; preset: string; accent: string; project: string; brandNat?: Partial<BrandNat> }) {
   const iframe = useRef<HTMLIFrameElement>(null);
-  const plan = useMemo(() => livePlan(source, { preset, accent, motion: 'balanced', effects: [] }, project, location.origin), [source, preset, accent, project]);
+  const plan = useMemo(() => livePlan(source, { preset, accent, brandNat, motion: 'balanced', effects: [] }, project, location.origin), [source, preset, accent, brandNat, project]);
   const latest = useRef(plan); latest.current = plan;
   const ready = useRef(false);
   const send = () => iframe.current?.contentWindow?.postMessage({ type: 'yap-preview-props', plan: latest.current, frame: Math.min(Math.round(latest.current.fps * 1.2), Math.round(latest.current.duration * latest.current.fps) - 1), seek: true, playing: false, muted: true }, location.origin);

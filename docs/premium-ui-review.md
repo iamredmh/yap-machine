@@ -1,5 +1,9 @@
 # Yap Machine — visual design revision
 
+Historical review: the six-style counts below describe the 23 October build.
+The current picker has six unified Yap Machine looks, with earlier saved
+recipes retained. See [the treatment reference](brand-nat.md) for later changes.
+
 23 October 2026. This revision addresses the feedback about the native timeline slider, undersized effect labels, unnecessary timeline scrolling and the gap to the supplied reference products.
 
 ## What informed the revision

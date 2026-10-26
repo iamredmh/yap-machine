@@ -31,7 +31,7 @@ You need local terminal and file access, as in Claude Code or Codex. A chat sess
 
        ./scripts/yap-machine doctor
 
-   Preparing new footage and speech-based quality checks need whisper.cpp and a Whisper model. Follow the doctor's instructions for missing speech tools. Review and style work on already prepared projects can run before adding the speech tools. Styled export needs Chromium; an existing Chrome installation is detected on macOS, or set `YAP_BROWSER` to a Chromium executable. Remotion may download its browser when none is provided. Automatic person cutouts additionally require macOS 12+ and Apple Command Line Tools (`xcode-select --install`). Use the catalog capability and its reason before choosing a cutout effect; do not silently substitute a different effect.
+   Preparing new footage and speech-based quality checks need whisper.cpp and a Whisper model. Follow the doctor's instructions for missing speech tools. Review and style work on already prepared projects can run before adding the speech tools. Styled export needs Chromium; an existing Chrome installation is detected on macOS, or set `YAP_BROWSER` to a Chromium executable. Remotion may download its browser when none is provided. Automatic person cutouts additionally require macOS 12+ and Apple Command Line Tools (`xcode-select --install`). Check the Desk catalog capability and its reason before choosing a cutout effect; the CLI catalog is static. Do not silently substitute a different effect.
 
 5. Start the desk:
 
@@ -51,6 +51,14 @@ Use the absolute path to `<checkout>/scripts/yap-machine` from any working direc
 The loop: init a project in the desk workspace → prep its footage → read `takes.md` and `delivery.md` → write `cuts/v1/edl.json` → run `cut v1` → inspect `qc.md` and the join sheets → fix problems → use `yap_reply` to hand it over → use `yap_next_batch` to collect review notes → make a new version. Use the desk's **Style & export** screen or the `visuals` command for styled MP4s.
 
 After a disconnect, `yap_status` lists unfinished work in `pickedBatches`. Once the previous agent session has stopped, call `yap_resume_batch` with its batch ID. Inspect the existing versions and note replies before continuing, then answer with the same ID. Resuming does not requeue the batch or repeat completed work automatically; ordinary polling continues to pick only waiting batches.
+
+## Looks and effects
+
+The picker has six Yap Machine looks: Clean, Editorial, Bold, Handwritten, Glass and Terminal. The first four provide independent caption/title/layout/finish controls. Use `studio/catalog.json`: `styles` contains the visible looks and `legacyStyles` contains saved-compatible recipes. Keep the preset, accent, settings, effect type IDs and ordering of existing cuts unless the user changes them. Warmth is a finish choice. Checklist and Zoom each have two modes, giving 20 picker entries backed by 22 stored effect variants.
+
+The saved `brandNat` field and `nat-*` IDs remain internal compatibility names, not a separate product collection. Read `docs/brand-nat.md` when a creator requests a treatment or a source recipe code. Its 105-code reference distinguishes available controls, approximations, media/editorial work and unimplemented graphics. `visuals VERSION -p PROJECT --settings FILE` renders a snapshot without saving it.
+
+Optional `emphasis` is a comma-separated list of selected words, up to 160 characters; matching words end their phrase. Blank or omitted emphasis preserves the existing phrase-final behavior. H1 and G6 require a local person mask. Blank title text derives from actual opening words, and caption placement is a face-based preference, not universal scene understanding. Do not equate X1 with Floating icons, P3 with the foreground Counter, or X17 with Glass lens. The source pack includes no proof assets or licensed audio library; additional music/SFX tracks are not implemented. Use actual supporting content instead of inventing it.
 
 ## Files, privacy and platform limits
 

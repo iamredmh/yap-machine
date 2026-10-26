@@ -1,5 +1,9 @@
 # Yap Machine — UX quality sweep
 
+Historical review: the six-style counts below describe the 23 October build.
+The current picker has six unified Yap Machine looks, with earlier saved
+recipes retained. See [the treatment reference](brand-nat.md) for later changes.
+
 23 October 2026. Implemented in the existing local project.
 
 ## Reference comparison

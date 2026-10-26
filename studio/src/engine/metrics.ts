@@ -16,6 +16,8 @@ import spaceGrotesk400 from './metrics/space-grotesk-400.json';
 import spaceGrotesk700 from './metrics/space-grotesk-700.json';
 import virgil from './metrics/virgil.json';
 import vt323 from './metrics/vt323.json';
+import interTight800 from './metrics/inter-tight-800.json';
+import instrumentSerif400Italic from './metrics/instrument-serif-400-italic.json';
 
 // Letter metrics for every face a pack can name (scripts/font_metrics.py writes them; register new ones here).
 export type Metrics = {
@@ -38,6 +40,8 @@ export const METRICS: Record<string, Metrics> = {
   'caveat-700': m(caveat700),
   virgil: m(virgil),
   vt323: m(vt323),
+  'inter-tight-800': m(interTight800),
+  'instrument-serif-400-italic': m(instrumentSerif400Italic),
   'sora-400': m(sora400),
   'sora-700': m(sora700),
   'archivo-black': m(archivoBlack),

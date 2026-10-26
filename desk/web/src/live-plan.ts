@@ -1,3 +1,4 @@
+import { resolveBrandNat } from '../../src/core/brand-nat.js';
 /** Effects visible at this moment, using the compositor's inclusive start and exclusive end. */
 export function activeEffectsAtTime<T extends { at: number; duration: number; enabled?: boolean }>(effects: readonly T[], time: number): T[] {
     if (!Number.isFinite(time)) return [];
@@ -36,6 +37,7 @@ export function livePlan(source: any, settings: any, project: string, origin: st
     }));
     const original = settings.preset === 'original';
     return { ...source, original, pack: original ? 'volt' : settings.preset,
+        brandNat: resolveBrandNat(settings.preset, settings.brandNat),
         accent: settings.accent ?? (original ? source.accent : undefined), motion: settings.motion, effects,
         captionStyle: original ? source.captionStyle : null, plate: url(source.plate),
         mask: source.mask ? { ...source.mask, url: url(source.mask.url) } : null };

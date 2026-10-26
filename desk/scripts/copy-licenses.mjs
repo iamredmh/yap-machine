@@ -50,7 +50,8 @@ for (const family of (await readdir(fonts)).sort()) {
   for (const file of (await readdir(join(fonts, family))).sort()) {
     if (file.endsWith('-OFL.txt')) {
       await add(`fonts/${file}`, join(fonts, family, file), file.replace('-OFL.txt', ''),
-        'vendored with Style Studio engine', 'https://openfontlicense.org');
+        family === 'brand-nat' ? 'Brand Nat font adaptation' : 'vendored with Style Studio engine',
+        'https://openfontlicense.org');
     }
   }
 }

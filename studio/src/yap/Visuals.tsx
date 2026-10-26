@@ -5,6 +5,8 @@ import { Reel } from '../reel/Reel';
 import { checkPlan, type ReelPlan, type Shot } from '../reel/plan';
 import type { Shoot } from '../kit/Presenter';
 import { countUpSize, countUpText, effectEnvelope } from './effect-math';
+import { PersonLayer as Person, PersonMask } from './PersonLayer';
+import { BrandNatCaptions, BrandNatPicture, resolveBrandNat, type BrandNatConfig } from './BrandNat';
 type Word = {
     text: string;
     start: number;
@@ -34,6 +36,8 @@ export type VisualPlan = {
     height: number;
     fps: number;
     duration: number;
+    timelineOffset?: number;
+    brandNat?: BrandNatConfig;
     plate: string;
     words: Word[];
     translation?: Word[] | null;
@@ -108,19 +112,7 @@ function Raw({ p, style = {} }: {
     p: VisualPlan;
     style?: React.CSSProperties;
 }) {
-    return <OffthreadVideo src={p.plate} muted style={{ ...fill, width: '100%', height: '100%', objectFit: 'cover', ...style }}/>;
-}
-function Person({ p, style = {} }: {
-    p: VisualPlan;
-    style?: React.CSSProperties;
-}) {
-    const f = useCurrentFrame();
-    if (!p.mask)
-        throw new Error('This effect needs a person mask. Re-render with person segmentation enabled.');
-    const k = Math.max(1, Math.min(p.mask.count, Math.floor(f / p.fps * p.mask.fps) + 1));
-    const url = p.mask.url + String(k).padStart(6, '0') + '.png';
-    // Img waits for the mask before Remotion screenshots the frame.
-    return <div style={{ ...fill, ...style }}><Img src={url} style={{ display: 'none' }}/><div style={{ ...fill, maskImage: `url("${url}")`, maskMode: 'luminance', maskSize: '100% 100%', WebkitMaskImage: `url("${url}")`, WebkitMaskSize: '100% 100%' }}><Raw p={p}/></div></div>;
+    return <OffthreadVideo src={p.plate} muted pauseWhenBuffering acceptableTimeShiftInSeconds={1/p.fps} style={{ ...fill, width: '100%', height: '100%', objectFit: 'cover', ...style }}/>;
 }
 function Backdrop({ accent, dark = false }: {
     accent: string;
@@ -166,13 +158,14 @@ function EffectView({ e, p, children }: {
     const accent = p.accent ?? HERO, ink = PACK.palette.text, ground = PACK.grounds[PACK.composition.ground].colour;
     const motion = p.motion === 'subtle' ? .6 : p.motion === 'bold' ? 1.25 : 1;
     const { enter, exit: end } = effectEnvelope(local, e.duration);
-    const card: React.CSSProperties = { background: PACK.id === 'glass' ? '#ffffff24' : PACK.id === 'ledger' || PACK.id === 'sketch' || PACK.id === 'pop' ? '#fff' : PACK.palette.panel, color: PACK.id === 'ledger' || PACK.id === 'sketch' || PACK.id === 'pop' ? '#111' : ink, border: PACK.id === 'pop' ? `${u * .006}px solid #111` : `${Math.max(1, u * .002)}px solid ${PACK.palette.line}`, borderRadius: PACK.id === 'terminal' ? 0 : u * .018, boxShadow: PACK.id === 'pop' ? `${u * .012}px ${u * .012}px 0 #111` : `0 ${u * .02}px ${u * .05}px #0004`, backdropFilter: PACK.id === 'glass' ? 'blur(20px)' : undefined };
+    const lightCard = PACK.id === 'ledger' || PACK.id === 'sketch' || PACK.id === 'pop' || (PACK.id.startsWith('nat-') && PACK.composition.ground === 'light');
+    const card: React.CSSProperties = { background: PACK.id === 'glass' ? '#ffffff24' : lightCard ? '#fff' : PACK.palette.panel, color: lightCard ? '#111' : ink, border: PACK.id === 'pop' ? `${u * .006}px solid #111` : `${Math.max(1, u * .002)}px solid ${PACK.palette.line}`, borderRadius: PACK.id === 'terminal' ? 0 : u * .018, boxShadow: PACK.id === 'pop' ? `${u * .012}px ${u * .012}px 0 #111` : `0 ${u * .02}px ${u * .05}px #0004`, backdropFilter: PACK.id === 'glass' ? 'blur(20px)' : undefined };
     const textStyle: React.CSSProperties = { fontFamily: voiceFamily('display'), fontSize: u * .054, lineHeight: 1.1, overflowWrap: 'anywhere' };
     const labelled = (body: React.ReactNode) => <>{children}{body}</>;
     const zoom = (amount: number) => <AbsoluteFill style={{ transform: `scale(${1 + amount * e.strength * motion})`, transformOrigin: `50% ${p.shoot.eyes / p.shoot.height * 100}%` }}>{children}</AbsoluteFill>;
     const items = e.items ?? [];
     if (e.type === 'text-behind-person')
-        return <><Raw p={p}/><div style={{ position: 'absolute', top: `${(e.textY ?? .3) * 100}%`, left: '5%', right: '5%', transform: `translateY(-50%) scale(${.96 + .04 * enter})`, opacity: enter, color: accent, fontFamily: voiceFamily('display'), fontSize: u * (e.textSize ?? .16), fontWeight: 900, letterSpacing: '-.04em', lineHeight: .94, textAlign: 'center', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap', textShadow: `0 ${u * .003}px ${u * .012}px #0003` }}>{e.text}</div><Person p={p}/></>;
+        return <><Raw p={p}/><PersonMask p={p} inverse><div style={{ position: 'absolute', top: `${(e.textY ?? .3) * 100}%`, left: '5%', right: '5%', transform: `translateY(-50%) scale(${.96 + .04 * enter})`, opacity: enter, color: accent, fontFamily: voiceFamily('display'), fontSize: u * (e.textSize ?? .16), fontWeight: 900, letterSpacing: '-.04em', lineHeight: .94, textAlign: 'center', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap', textShadow: `0 ${u * .003}px ${u * .012}px #0003` }}>{e.text}</div></PersonMask></>;
     if (e.type === 'count-up') {
         const [start, target] = e.values ?? [0, 0];
         const number = countUpText(start, target, local, e.duration);
@@ -260,6 +253,7 @@ function EffectView({ e, p, children }: {
 export const Visuals: React.FC<VisualPlan> = (p) => {
     const f = useCurrentFrame(), { width: W, height: H } = useVideoConfig(), t = f / p.fps;
     const portrait = H / W > 1.6;
+    const nat = resolveBrandNat(p);
     const active = p.effects.filter(e => t >= e.at && t < e.at + e.duration);
     // Replacements discard the original caption tree; large overlays can cover
     // it. Render one readable lane above those pictures, in preview and export.
@@ -274,7 +268,8 @@ export const Visuals: React.FC<VisualPlan> = (p) => {
     if (active.some(e => e.type === 'growth-curve' || e.type === 'checklist')) captionY = Math.max(captionY, .9);
     if (active.some(e => e.type === 'b-roll-overlay')) captionY = Math.min(captionY, .59);
     let picture: React.ReactNode;
-    if (!p.original && portrait) {
+    if (nat) picture = <BrandNatPicture p={p} config={nat}/>;
+    else if (!p.original && portrait) {
         const plan = reelPlan(p);
         if (fixedCaptions) {
             plan.captions = [];
@@ -291,7 +286,7 @@ export const Visuals: React.FC<VisualPlan> = (p) => {
         picture = <EffectView key={e.id} e={e} p={p}>{picture}</EffectView>;
     // Phone/chat layouts carry their normal captions inside the video. Rescued
     // lanes stay above all effects, so later cards cannot hide the spoken words.
-    return <AbsoluteFill style={{ background: '#101016', overflow: 'hidden' }}>{picture}{fixedCaptions && <Caption p={p} y={captionY}/>}
+    return <AbsoluteFill style={{ background: '#101016', overflow: 'hidden' }}>{picture}{nat ? <BrandNatCaptions p={p} config={nat} activeTypes={active.map(e=>e.type)}/> : fixedCaptions && <Caption p={p} y={captionY}/>}
     {p.thirds.filter(n => t >= n.at && t < n.at + (n.duration ?? 4.5)).map((n, i) => <div key={i} style={{ position: 'absolute', left: '6%', bottom: '23%', background: '#fff', color: '#171717', borderLeft: `${Math.max(3, W * .006)}px solid ${p.accent ?? HERO}`, padding: `${W * .015}px ${W * .025}px`, borderRadius: W * .008, boxShadow: '0 4px 20px #0002', fontFamily: voiceFamily('body'), maxWidth: '75%' }}><strong style={{ display: 'block', fontSize: Math.min(W, H) * .04 }}>{n.name}</strong><span style={{ fontSize: Math.min(W, H) * .027 }}>{n.title}</span></div>)}
     <Audio src={p.plate}/>
   </AbsoluteFill>;

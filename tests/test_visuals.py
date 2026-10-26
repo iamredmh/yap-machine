@@ -21,9 +21,14 @@ def effect(**kw):
     return {"id":"one","type":"snap-zoom","at":1,"duration":2,"strength":1,**kw}
 
 
-def test_catalog_contains_all_six_styles_and_twenty_two_distinct_effects():
+def test_catalog_consolidates_choices_without_removing_saved_recipes():
     c=catalog()
-    assert {s['id'] for s in c['styles']}=={'volt','ledger','sketch','terminal','glass','pop'}
+    assert [s['name'] for s in c['styles']] == ['Clean', 'Editorial', 'Bold', 'Handwritten', 'Glass', 'Terminal']
+    assert {s['id'] for s in c['legacyStyles']} == {'volt', 'ledger', 'sketch', 'pop', 'nat-warm'}
+    assert len([e for e in c['effects'] if not e.get('pickerHidden')]) == 20
+    visible_modes = [v['type'] for e in c['effects'] if not e.get('pickerHidden') for v in e.get('variants', [{'type':e['id']}])]
+    assert len(visible_modes) == len(set(visible_modes)) == 22
+    assert set(visible_modes) == {e['id'] for e in c['effects']}
     assert len(c['effects'])==22 and len({e['id'] for e in c['effects']})==22
     assert next(e for e in c['effects'] if e['id']=='text-behind-person')['matte'] is True
     assert next(e for e in c['effects'] if e['id']=='count-up')['matte'] is False

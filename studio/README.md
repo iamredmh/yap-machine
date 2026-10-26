@@ -1,8 +1,8 @@
 # Yap Machine styles renderer
 
-This adapter runs the six Style Studio packs on Yap Machine's resolved cut and
-word timings, then composites timed effects. Footage, audio and person masks
-stay local. The desk is still the existing Yap Machine desk.
+This renderer applies six Yap Machine looks to the resolved cut and word
+timings, then composites timed effects. Earlier saved style IDs remain valid.
+Footage, audio and person masks stay local. The desk is still the existing Yap Machine desk.
 
 From the repository root, run `./scripts/install` to install the locked engine
 and Node dependencies and build the desk. Then run `./scripts/start-desk ~/Yap`
@@ -17,7 +17,8 @@ Automatic person cutouts require **macOS 12 or newer** and **Apple Command Line
 Tools**, installed with `xcode-select --install`. They use Apple Vision and a
 locally compiled Swift helper (`xcrun swiftc`).
 They cache grayscale masks under the project's `cache/person-masks/` directory.
-The catalog reports cutout availability and explains missing requirements.
+The Desk catalog reports cutout availability and explains missing requirements;
+`visuals-catalog` prints the static styles and effects catalog.
 On Linux, captions, styles and effects without a person mask remain available;
 automatic cutouts are unavailable.
 When FFmpeg has no libass, the compositor also draws the original captions.
@@ -71,8 +72,8 @@ Each cut has `visuals.json` beside `edl.json` and `timeline.json`:
 {
   "schema": 1,
   "rev": 1,
-  "preset": "volt",
-  "accent": "#FFE600",
+  "preset": "nat-clean",
+  "accent": "#E5EDFF",
   "motion": "balanced",
   "effects": [
     {
@@ -106,6 +107,42 @@ An unsuccessful render leaves the previous playable export intact. Project
 style defaults live in `style.json` as `visual_defaults` and do not copy timed
 effects into unrelated cuts.
 
+## Looks and treatments
+
+The picker offers Clean, Editorial, Bold, Handwritten, Glass and Terminal.
+Clean, Editorial, Bold and Handwritten expose caption, opening-title, layout,
+finish, emphasis and placement controls. Glass and Terminal retain their distinct style
+engines. Earlier Volt, Ledger, Sketch, Pop and Warm editorial cuts still render
+through their original settings; they are not duplicate choices in the picker.
+
+The editable treatment object is still named `brandNat` in saved settings for
+compatibility. The active configurable preset IDs are `nat-clean`,
+`nat-editorial`, `nat-bold` and `nat-scrapbook`; saved `nat-warm` cuts also accept
+that object. Missing fields inherit the selected recipe's catalog defaults.
+
+```json
+{"preset":"nat-editorial","brandNat":{"caption":"C9","hook":"H10","layout":"L4","finish":"G2","title":"","subtitle":"","emphasis":"","position":"auto"},"effects":[]}
+```
+
+Read [the treatment reference](../docs/brand-nat.md) for saved settings, old-ID
+mapping and the full support reference. The source codes are reference keys,
+not a second collection of product styles. Opening titles last up to three
+seconds; blank title text derives from actual opening words. H1 and G6 require
+a local person mask. C3 omits added captions, not text already in the footage.
+Caption placement considers face geometry and known overlay regions; review
+source text and other important objects in the actual frame. Optional comma-separated
+`emphasis` words end their caption phrase; blank or omitted values preserve the
+existing phrase-final emphasis.
+
+The effect picker has 20 entries backed by 22 stored variants: Checklist has
+Card (`checklist-pop`) and Full screen (`checklist`) modes; Zoom has Punch in
+(`snap-zoom`) and Camera (`digital-zoom`) modes. Existing type IDs and effect
+properties are preserved. These are choices within one effect, not new effects.
+
+A settings snapshot can be rendered with
+`./scripts/yap-machine visuals v1 -p ~/Yap/my-video --settings /absolute/path/to/settings.json`.
+This renders the snapshot; it does not save it back to `visuals.json`.
+
 ## Words behind a speaker and background replacement
 
 `text-behind-person` keeps the original video as the bottom layer, places your
@@ -126,11 +163,15 @@ A mask failure is reported rather than presented as a completed cutout.
 
 ## Source and licenses
 
-`src/engine`, `kit`, `scenes`, `pack-scenes`, `packs`, `reel` and `public/fonts`
-are adapted from kelano86's [Style Studio engine](https://github.com/kelano86/style-studio-engine)
+The original `src/engine`, `kit`, `scenes`, `pack-scenes`, `packs`, `reel` and
+Style Studio font families are adapted from kelano86's [Style Studio engine](https://github.com/kelano86/style-studio-engine)
 (commit recorded in the root NOTICE). Its MIT license is in
 `STYLE-STUDIO-LICENSE`. Font notices are alongside each font. Our integration
 is in `src/yap/`, `render.mjs`, `person-mask.swift` and `catalog.json`.
+The configurable treatment renderer is a newly written adaptation of a
+user-supplied design reference. Its original guide code is not vendored. The two fonts in
+`public/fonts/brand-nat` retain separate, full OFL notices and a provenance
+manifest; those licenses do not cover the whole supplied pack.
 
 Remotion is a separate dependency with its own [license](https://www.remotion.dev/license),
 retained in its installed npm packages. The Style Studio MIT license does not

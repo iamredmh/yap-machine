@@ -7,14 +7,14 @@ import { EditTimeline } from './EditTimeline.js';
 import { StudioIcon } from './StudioIcon.js';
 import { captionEditMessage, captionEditState, type CaptionEditState } from './caption-edit-state.js';
 import './visual-studio.css';
-import { changeHistory, clampTime, effectIssue, historyOf, recoverDraft, travelHistory, type History } from './studio-state.js';
-type Effect = { id: string; type: string; at: number; duration: number; strength: number; enabled: boolean; text: string; textSize?: number; textY?: number; items: string[]; values: number[]; asset?: string; anchor?: { source: string; time: number; occurrence: number } };
-type Settings = { preset: string; motion: string; accent?: string; effects: Effect[] };
-type Kind = { id: string; name: string; group: string; description: string; asset: boolean; matte: boolean };
-type Style = { id: string; name: string; summary: string; accent: string; background: string; font: string; signature: string };
+import { changeHistory, clampTime, effectIssue, historyOf, needsPresenterMask, recoverDraft, travelHistory, visualSettingsOf as settingsOf, type History, type VisualEffect as Effect, type VisualSettings as Settings } from './studio-state.js';
+import { brandNatNeedsMask, resolveBrandNat, type BrandNat } from '../../src/core/brand-nat.js';
+type Kind = { id: string; name: string; group: string; description: string; asset: boolean; matte: boolean; pickerHidden?: boolean; variants?: { type: string; name: string }[] };
+type Style = { id: string; name: string; summary: string; accent: string; background: string; font: string; signature: string; family?: string; brandNat?: BrandNat };
+type NatControl = 'caption' | 'hook' | 'layout' | 'finish' | 'position';
+type NatOption = { code: string; name: string; description: string; matte?: boolean };
 type Panel = 'style' | 'effects' | 'captions' | 'export';
 const blank: Settings = { preset: 'original', motion: 'balanced', effects: [] };
-const settingsOf = (c: any): Settings => ({ preset: c.preset ?? 'original', motion: c.motion ?? 'balanced', ...(c.accent ? { accent: c.accent } : {}), effects: (c.effects ?? []).map((e: any, i: number) => ({ id: `effect-${i + 1}`, at: 0, duration: 2.5, strength: 1, enabled: true, text: '', items: [], values: [], ...e })) });
 const same = (a: Settings, b: Settings) => JSON.stringify(a) === JSON.stringify(b);
 const storage = { get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } }, put: (k: string, v: any) => { try { v ? localStorage.setItem(k, JSON.stringify(v)) : localStorage.removeItem(k); } catch { /* browser storage optional */ } } };
 
@@ -22,7 +22,7 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
   const cuts = [...project.shorts, ...project.versions].sort((a: any, b: any) => b.version.localeCompare(a.version, undefined, { numeric: true }));
   const [version, setVersion] = useState(cuts.some((c: any) => c.version === initialVersion) ? initialVersion! : cuts[0]?.version ?? '');
   useEffect(() => { if (version) onVersion?.(version); }, [version]);
-  const [catalog, setCatalog] = useState<{ styles: Style[]; effects: Kind[]; capabilities?: { personMatte: boolean; personMatteReason?: string | null } } | null>(null);
+  const [catalog, setCatalog] = useState<{ styles: Style[]; legacyStyles?: Style[]; effects: Kind[]; brandNat?: { name: string; options: Record<NatControl, NatOption[]> }; capabilities?: { personMatte: boolean; personMatteReason?: string | null } } | null>(null);
   const [data, setData] = useState<any>(null), [saved, setSaved] = useState<Settings>(blank);
   const [history, setHistory] = useState<History<Settings>>(historyOf(blank));
   const historyRef = useRef(history); historyRef.current = history;
@@ -54,11 +54,16 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
   const activeDuration = previewMode === 'rendered' && renderedDuration ? renderedDuration : duration;
   const effect = settings.effects.find(e => e.id === selected);
   const kind = catalog?.effects.find(k => k.id === effect?.type);
+  const effectFamily = catalog?.effects.find(k => k.variants?.some(v => v.type === effect?.type)) ?? kind;
   const matteUnavailable = catalog?.capabilities?.personMatte === false;
   const matteReason = catalog?.capabilities?.personMatteReason ?? 'Automatic cutouts need macOS 12 or later and Apple’s Command Line Tools. Disable cutout effects to export on this computer.';
+  const nat = resolveBrandNat(settings.preset, settings.brandNat);
+  const natMask = brandNatNeedsMask(settings.preset, nat);
+  const natIssue = natMask && matteUnavailable ? matteReason + ' Choose another opening title and finish below.' : null;
   const issues = settings.effects.map(e => ({ id: e.id, message: effectIssue(e, duration, boundaries)
     || (e.enabled && matteUnavailable && catalog?.effects.some(k => k.id === e.type && k.matte) ? matteReason : null) })).filter(i => i.message);
-  const matteNeeded = !matteUnavailable && !!catalog?.effects.some(k => k.matte && settings.effects.some(e => e.enabled && e.type === k.id));
+  const matteNeeded = !matteUnavailable && needsPresenterMask(settings, catalog?.effects ?? []);
+  const natPreviewBlocked = !compare && natMask && !source?.mask;
   const assetKey = settings.effects.map(e => e.asset ?? '').join('|');
   const video = useRef<HTMLVideoElement>(null), side = useRef<HTMLDivElement>(null);
   const displaySettings = useMemo(() => compare ? { ...blank, motion: 'balanced' } : settings, [settings, compare]);
@@ -84,6 +89,10 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
     lastEdit.current = { key: group, time: now }; historyRef.current = next; setHistory(next); edited();
   };
   const patch = (id: string, p: Partial<Effect>, group = '') => set({ effects: historyRef.current.present.effects.map(e => e.id === id ? { ...e, ...p } : e) }, group);
+  const patchNat = (patch: Partial<BrandNat>, group = '') => {
+    const current = historyRef.current.present;
+    set({ brandNat: resolveBrandNat(current.preset, { ...current.brandNat, ...patch }) }, group);
+  };
   const travel = (dir: 'undo' | 'redo') => { const next = travelHistory(historyRef.current, dir); historyRef.current = next; setHistory(next); lastEdit.current.key = ''; edited(); };
   const chooseEffect = (e: Effect) => { setSelected(e.id); selectPanel('effects'); jump(Math.min(e.at + .4, e.at + e.duration / 2)); };
   const anchorFor = (t: number) => {
@@ -157,6 +166,7 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
 
   const save = async (): Promise<number | null> => {
     if (!data || uploading) return null;
+    if (natIssue) { setErr(natIssue); selectPanel('style'); return null; }
     if (issues.length) { setErr('Finish the highlighted effects before saving, or switch them off.'); const e = settings.effects.find(e => e.id === issues[0].id); if (e) chooseEffect(e); return null; }
     setBusy(true); setErr(''); const generation = editGeneration.current, requestScope = scope;
     try {
@@ -170,6 +180,7 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
     finally { setBusy(false); }
   };
   const render = async (preview: boolean) => {
+    if (natIssue) { setErr(natIssue); selectPanel('style'); return; }
     const pendingMessage = captionEditMessage(captionEditsRef.current);
     if (!preview && pendingMessage) { setErr(pendingMessage); selectPanel('captions'); return; }
     const generation = editGeneration.current, requestScope = scope;
@@ -202,9 +213,37 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
   }, [busy, dirty]);
 
   if (!cuts.length) return <div class="empty vs-empty"><span class="label">Style & export</span><h2>Your video comes first.</h2><p>Bring in your footage and create a cut. Then try a style, add effects and export it here.</p><a class="btn primary" href="#review">Go to review</a><a class="btn ghost" href="#inbox">Add footage</a></div>;
-  const style = catalog?.styles.find(s => s.id === settings.preset);
-  const ordered = catalog?.effects.filter(k => (filter === 'All' || k.group === filter) && `${k.name} ${k.description}`.toLowerCase().includes(search.toLowerCase().trim())) ?? [];
-  const nameOf = (type: string) => catalog?.effects.find(k => k.id === type)?.name ?? type;
+  const style = [...(catalog?.styles ?? []), ...(catalog?.legacyStyles ?? [])].find(s => s.id === settings.preset);
+  const retiredStyle = catalog?.legacyStyles?.some(s => s.id === settings.preset);
+  const styleCard = (s: Style) => <button key={s.id} class={'vs-style' + (settings.preset === s.id ? ' chosen' : '')} aria-label={`${s.name} · ${s.summary}`} aria-pressed={settings.preset === s.id} onClick={() => {
+    if (settings.preset !== s.id) {
+      set({ preset: s.id, accent: s.accent, brandNat: resolveBrandNat(s.id, s.brandNat) });
+      if (s.brandNat) jump(1.2);
+    }
+  }}>
+    <span class="vs-style-art" style={{ background: s.background, '--vs-colour': s.accent, aspectRatio: `${data?.timeline.width}/${data?.timeline.height}` } as any}>
+      {source ? <StylePreview source={source} preset={s.id} accent={s.accent} brandNat={s.brandNat} project={project.id}/> : <span class="vs-thumb-loading">{s.name}</span>}
+      <span class="vs-style-check"><StudioIcon name="check"/></span>
+    </span>
+    <span class="vs-style-title"><strong>{s.name}</strong><span class="vs-style-dot" style={{ background: s.accent }}/></span>
+    <span class="vs-style-description">{({ volt: 'Bold & electric', ledger: 'Quiet editorial', sketch: 'Hand-drawn', terminal: 'Retro digital', glass: 'Soft & luminous', pop: 'Playful & punchy', 'nat-editorial': 'Serif & staircase', 'nat-warm': 'Warm highlights', 'nat-clean': 'Clean keyword pills', 'nat-scrapbook': 'Handwritten & blue', 'nat-bold': 'Bold words & yellow' } as Record<string, string>)[s.id] ?? s.summary}</span>
+  </button>;
+  const natSelect = (field: NatControl, label: string) => {
+    if (!nat || !catalog?.brandNat) return null;
+    const options = catalog.brandNat.options[field], active = options.find(o => o.code === nat[field]);
+    return <label class="field vs-nat-field" key={field}><span class="vs-nat-label">{label}</span>
+      <select aria-label={label} aria-describedby={`nat-${field}-help`} value={nat[field]} onChange={e => {
+        patchNat({ [field]: e.currentTarget.value } as Partial<BrandNat>);
+        if (field === 'hook') jump(1.2);
+      }}>{options.map(o => <option key={o.code} value={o.code} disabled={o.matte && matteUnavailable}>{o.name}{o.matte ? ' · Mac cutout' : ''}</option>)}</select>
+      <span class="fine" id={`nat-${field}-help`}>{active?.description}</span>
+    </label>;
+  };
+  const ordered = catalog?.effects.filter(k => !k.pickerHidden && (filter === 'All' || k.group === filter) && `${k.name} ${k.description}`.toLowerCase().includes(search.toLowerCase().trim())) ?? [];
+  const nameOf = (type: string) => {
+    const family = catalog?.effects.find(k => k.variants?.some(v => v.type === type));
+    return family ? `${family.name} · ${family.variants?.find(v => v.type === type)?.name}` : catalog?.effects.find(k => k.id === type)?.name ?? type;
+  };
   const dismissEffect = (e: Effect) => { patch(e.id, { enabled: false }); setDismissedEffect(nameOf(e.type)); };
   const undoDismissal = () => { travel('undo'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.vs-preview-effects .vs-effect-off')?.focus()); };
   const discard = () => { set({ ...structuredClone(saved) }); setApply(false); setSelected(null); setNotice('Returned to saved settings. Undo to bring back your edits.'); };
@@ -238,7 +277,7 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
         </div>}
         <div class="vs-stage" style={{ '--video-ratio': data.timeline.width / data.timeline.height } as any}>
           <div class="vs-player" style={{ aspectRatio: `${data.timeline.width}/${data.timeline.height}` }}>
-            {previewMode === 'live' ? source ? <LivePreview source={source} settings={displaySettings} project={project.id} seek={seek} onTime={setTime} transport={transport} onPlayback={setPlayback} onReady={setPreviewReady} onCommand={command => command === 'save' ? (!busy && dirty && void save()) : travel(command)}/> : <div class="vs-loading" role="status"><span class="vs-loading-icon">▷</span><b>{sourceError ? 'Preview unavailable' : 'Preparing your video'}</b><p>{sourceError ? 'Try again, or render a short preview.' : 'You can choose a style while this loads.'}</p>{sourceError && <button class="btn" onClick={() => setRetry(r => r + 1)}>Try again</button>}</div> : result?.file ? <video ref={video} key={result.stamp} playsInline muted={playback.muted} onLoadedMetadata={e => setRenderedDuration(e.currentTarget.duration)} onTimeUpdate={e => setTime(e.currentTarget.currentTime)} onPlay={() => setPlayback(p => ({ ...p, playing: true }))} onPause={() => setPlayback(p => ({ ...p, playing: false }))} onVolumeChange={e => setPlayback(p => ({ ...p, muted: e.currentTarget.muted }))} src={media(project.id, result.file) + '?v=' + result.stamp}/> : null}
+            {previewMode === 'live' ? source && !natPreviewBlocked ? <LivePreview source={source} settings={displaySettings} project={project.id} seek={seek} onTime={setTime} transport={transport} onPlayback={setPlayback} onReady={setPreviewReady} onCommand={command => command === 'save' ? (!busy && dirty && void save()) : travel(command)}/> : <div class="vs-loading" role="status"><span class="vs-loading-icon">▷</span><b>{sourceError || natIssue ? 'Preview unavailable' : natPreviewBlocked ? 'Preparing your cutout' : 'Preparing your video'}</b><p>{natIssue || sourceError || (natPreviewBlocked ? 'Separating you from the background on this Mac. Your video stays here.' : 'You can choose a style while this loads.')}</p>{sourceError && !natIssue && <button class="btn" onClick={() => setRetry(r => r + 1)}>Try again</button>}</div> : result?.file ? <video ref={video} key={result.stamp} playsInline muted={playback.muted} onLoadedMetadata={e => setRenderedDuration(e.currentTarget.duration)} onTimeUpdate={e => setTime(e.currentTarget.currentTime)} onPlay={() => setPlayback(p => ({ ...p, playing: true }))} onPause={() => setPlayback(p => ({ ...p, playing: false }))} onVolumeChange={e => setPlayback(p => ({ ...p, muted: e.currentTarget.muted }))} src={media(project.id, result.file) + '?v=' + result.stamp}/> : null}
           </div>
           {compare && <span class="vs-before-badge">ORIGINAL</span>}
           {preparing && source && <span class="vs-preparing" role="status">Preparing presenter or media…</span>}
@@ -246,7 +285,7 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
         <div class="vs-transport">
           <div class="vs-playback-controls">
             <button class="vs-icon-btn" aria-label="Back 5 seconds" title="Back 5 seconds" onClick={() => seekPlayback(time - 5)}><StudioIcon name="back"/></button>
-            <button class="vs-play-btn" disabled={previewMode === 'live' && !previewReady} aria-label={playback.playing ? 'Pause video' : 'Play video'} title="Play / pause" onClick={() => control('play')}><StudioIcon name={playback.playing ? 'pause' : 'play'}/></button>
+            <button class="vs-play-btn" disabled={previewMode === 'live' && (!previewReady || natPreviewBlocked)} aria-label={playback.playing ? 'Pause video' : 'Play video'} title="Play / pause" onClick={() => control('play')}><StudioIcon name={playback.playing ? 'pause' : 'play'}/></button>
             <button class="vs-icon-btn" aria-label="Forward 5 seconds" title="Forward 5 seconds" onClick={() => seekPlayback(time + 5)}><StudioIcon name="forward"/></button>
             <span class="vs-time"><b>{tcLong(time)}</b><span>/ {tc(activeDuration)}</span></span>
             <button class="vs-icon-btn vs-mute" aria-label={playback.muted ? 'Unmute video' : 'Mute video'} title={playback.muted ? 'Unmute' : 'Mute'} onClick={() => control('mute')}><StudioIcon name={playback.muted ? 'muted' : 'volume'}/></button>
@@ -269,22 +308,31 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
         <div class="vs-sidebar-body" ref={side} role="tabpanel" id={`vs-panel-${panel}`} aria-labelledby={`vs-tab-${panel}`}>
           {captionMessage && <div class="vs-input-hint" id="vs-caption-pending" role="status"><p>{captionMessage}</p>{captionEdits.queued || captionEdits.saving ? panel !== 'captions' && <button class="btn small" onClick={() => selectPanel('captions')}>Review caption changes</button> : <a class="btn small" href="#review">Review updated cut</a>}</div>}
           {panel === 'style' && <>
-            <div class="vs-section-intro"><span class="label">Your video. Your signature.</span><h2>Find your <em>look.</em></h2><p>Six distinct styles, previewed on your video.</p></div>
-            <button class={'vs-original' + (settings.preset === 'original' ? ' chosen' : '')} aria-label="Original · Keep your current look" aria-pressed={settings.preset === 'original'} onClick={() => { if (settings.preset !== 'original') set({ preset: 'original', accent: undefined }); }}><StudioIcon name="film"/><span><strong>Original</strong><small>Keep your current look</small></span><StudioIcon name={settings.preset === 'original' ? 'check' : 'arrow'}/></button>
-            <div class="vs-styles" role="group" aria-label="Video style">
-              {catalog.styles.map(s => <button key={s.id} class={'vs-style' + (settings.preset === s.id ? ' chosen' : '')} aria-label={`${s.name} · ${s.summary}`} aria-pressed={settings.preset === s.id} onClick={() => { if (settings.preset !== s.id) set({ preset: s.id, accent: s.accent }); }}>
-                <span class="vs-style-art" style={{ background: s.background, '--vs-colour': s.accent, aspectRatio: `${data.timeline.width}/${data.timeline.height}` } as any}>
-                  {source ? <StylePreview source={source} preset={s.id} accent={s.accent} project={project.id}/> : <span class="vs-thumb-loading">{s.name}</span>}
-                  <span class="vs-style-check"><StudioIcon name="check"/></span>
-                </span>
-                <span class="vs-style-title"><strong>{s.name}</strong><span class="vs-style-dot" style={{ background: s.accent }}/></span><span class="vs-style-description">{({ volt: 'Bold & electric', ledger: 'Quiet editorial', sketch: 'Hand-drawn', terminal: 'Retro digital', glass: 'Soft & luminous', pop: 'Playful & punchy' } as Record<string, string>)[s.id]}</span>
-              </button>)}
-            </div>
+            <div class="vs-section-intro"><span class="label">Your video. Your signature.</span><h2>Find your <em>look.</em></h2><p>Distinct looks, previewed on your own video.</p></div>
+            <button class={'vs-original' + (settings.preset === 'original' ? ' chosen' : '')} aria-label="Original · Keep your current look" aria-pressed={settings.preset === 'original'} onClick={() => { if (settings.preset !== 'original') set({ preset: 'original', accent: undefined, brandNat: undefined }); }}><StudioIcon name="film"/><span><strong>Original</strong><small>Keep your current look</small></span><StudioIcon name={settings.preset === 'original' ? 'check' : 'arrow'}/></button>
+            <div class="vs-styles" role="group" aria-label="Yap Machine looks">{catalog.styles.map(styleCard)}</div>
+            {retiredStyle && <p class="vs-saved-look"><strong>{style?.name} · Saved look</strong><span>Your existing look is preserved. Choose one above when you want a fresh starting point.</span></p>}
+            {nat && catalog.brandNat && <section class="vs-nat-customise" aria-labelledby="vs-nat-customise-heading">
+              <div class="vs-nat-heading"><div><span class="label">Make it yours</span><h3 id="vs-nat-customise-heading">{style?.name ?? 'Your look'}</h3></div><button class="btn ghost small" onClick={() => { set({ brandNat: resolveBrandNat(settings.preset, style?.brandNat), accent: style?.accent }); jump(1.2); }}>Reset look</button></div>
+              {natSelect('caption', 'Captions')}
+              {['C1', 'C4', 'C5', 'C6', 'C7', 'C9'].includes(nat.caption) && <label class="field">Emphasise words<input aria-label="Emphasise words" maxLength={160} value={nat.emphasis ?? ''} placeholder="For example: idea, story, useful" onInput={e => patchNat({ emphasis: e.currentTarget.value }, 'emphasis')}/><span class="fine">Separate words with commas. Each gets the highlighted beat as you say it. Leave blank to use the end of each phrase.</span></label>}
+              {natSelect('hook', 'Opening title')}
+              {nat.hook !== 'none' && <div class="vs-nat-copy">
+                <label class="field">Your headline<input aria-label="Your headline" maxLength={120} value={nat.title} placeholder="Use the opening words from your video" onFocus={() => { if (time >= 3) jump(1.2); }} onInput={e => patchNat({ title: e.currentTarget.value }, 'nat-title')}/></label>
+                <label class="field">Supporting line<input aria-label="Supporting line" maxLength={100} value={nat.subtitle} placeholder="Use the next words from your video" onFocus={() => { if (time >= 3) jump(1.2); }} onInput={e => patchNat({ subtitle: e.currentTarget.value }, 'nat-subtitle')}/></label>
+                <span class="fine">Leave either line empty to use your spoken words. The title opens your video for up to three seconds.</span>
+                <button class="btn ghost small" onClick={() => jump(1.2)}>Preview the opening<StudioIcon name="play"/></button>
+              </div>}
+              {natSelect('layout', 'Layout')}{natSelect('finish', 'Finish')}{natSelect('position', 'Text placement')}
+              {matteUnavailable && <p class="fine vs-nat-matte" role="status">{natIssue || `${matteReason} The two Mac cutout choices are unavailable here.`}</p>}
+              {natMask && !matteUnavailable && <p class="fine vs-nat-matte" role="status">{sourceError || (preparing || !source?.mask ? 'Preparing a real presenter cutout on this Mac…' : 'Presenter cutout ready for preview and export.')}</p>}
+            </section>}
             <details class="vs-customise"><summary><span><StudioIcon name="sliders"/>Fine-tune your style</span><StudioIcon name="chevron"/></summary><div class="vs-customise-body"><div class="vs-toolbar"><label>Motion<select aria-label="Motion strength" value={settings.motion} onChange={e => set({ motion: e.currentTarget.value })}><option value="subtle">Subtle</option><option value="balanced">Balanced</option><option value="bold">Bold</option></select></label><label>Accent<input aria-label="Style accent" type="color" value={settings.accent ?? style?.accent ?? '#F0412B'} onInput={e => set({ accent: e.currentTarget.value }, 'accent')}/></label></div><label class="vs-default"><input type="checkbox" checked={apply} onChange={e => setApply(e.currentTarget.checked)}/> Use this style for new cuts</label></div></details>
           </>}
           {panel === 'effects' && <>
             {effect && kind ? <div class="vs-effect-editor" key={effect.id}>
-              <button class="btn ghost small vs-back" onClick={() => setSelected(null)}>← All effects</button><div class="row between"><h2>{kind.name}</h2><label class="vs-enable"><input type="checkbox" checked={effect.enabled} onChange={e => patch(effect.id, { enabled: e.currentTarget.checked })}/> On</label></div><p class="muted small">{kind.description}</p>
+              <button class="btn ghost small vs-back" onClick={() => setSelected(null)}>← All effects</button><div class="row between"><h2>{effectFamily?.name ?? kind.name}</h2><label class="vs-enable"><input type="checkbox" checked={effect.enabled} onChange={e => patch(effect.id, { enabled: e.currentTarget.checked })}/> On</label></div><p class="muted small">{kind.description}</p>
+              {effectFamily?.variants && <label class="field">Presentation<select aria-label="Effect presentation" value={effect.type} onChange={e => patch(effect.id, { type: e.currentTarget.value })}>{effectFamily.variants.map(v => <option key={v.type} value={v.type}>{v.name}</option>)}</select><span class="fine">Your text, timing and steps stay in place when you switch.</span></label>}
               {effectIssue(effect, duration, boundaries) && <p class="vs-input-hint" role="status">{effectIssue(effect, duration, boundaries)}</p>}
               <div class="grid2"><label class="field">Start · seconds<input type="number" aria-label="Effect start" step="0.1" min="0" max={Math.max(0, duration - .1)} value={Number(effect.at.toFixed(2))} onChange={e => place(effect.id, Number(e.currentTarget.value))}/></label><label class="field">Duration · seconds<input type="number" aria-label="Effect duration" step="0.1" min="0.1" max={Math.min(60, duration - effect.at)} value={Number(effect.duration.toFixed(2))} onChange={e => patch(effect.id, { duration: Number(e.currentTarget.value) })}/></label></div>
               <div class="row"><button class="btn small" onClick={() => place(effect.id, time)}>Start at playhead</button><button class="btn ghost small" onClick={() => jump(effect.at + Math.min(.5, effect.duration / 2))}>Preview effect</button></div>
@@ -321,10 +369,12 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
               {!ordered.length && <div class="empty"><p>No effects match “{search}”.</p><button class="btn small" onClick={() => { setSearch(''); setFilter('All'); }}>Show all effects</button></div>}
             </>}
           </>}
-          {panel === 'captions' && <><div class="vs-section-intro"><span class="label">The finishing details</span><h2>Every word, right.</h2><p class="muted small">Each style includes its own captions. Send spelling and name-card changes to your agent here.</p></div>{captions}</>}
+          {panel === 'captions' && <><div class="vs-section-intro"><span class="label">The finishing details</span><h2>Every word, right.</h2><p class="muted small">{nat?.caption === 'C3' ? 'Spoken captions are off for this look. You can still send spelling and name-card changes to your agent here.' : 'Send spelling and name-card changes to your agent here.'}</p>{nat?.caption === 'C3' && <button class="btn ghost small" onClick={() => selectPanel('style')}>Choose a caption treatment<StudioIcon name="arrow"/></button>}</div>{captions}</>}
           {panel === 'export' && <>
             <div class="vs-section-intro"><span class="label">Ready when you are</span><h2>Make it shareable.</h2><p class="muted small">Export your complete video, with the current style and effects.</p></div>
             <div class="vs-export-summary"><span>Video</span><b>{version} · {tc(duration)}</b><span>Format</span><b>{data.timeline.width} × {data.timeline.height} · MP4</b><span>Style</span><b>{style?.name ?? 'Original'}</b><span>Effects</span><b>{settings.effects.filter(e => e.enabled).length} active</b></div>
+            {nat && <p class="fine">{catalog.brandNat?.options.caption.find(o => o.code === nat.caption)?.name} · {catalog.brandNat?.options.layout.find(o => o.code === nat.layout)?.name} · {catalog.brandNat?.options.finish.find(o => o.code === nat.finish)?.name}</p>}
+            {natIssue && <p class="vs-input-hint">{natIssue} <button class="btn small" onClick={() => selectPanel('style')}>Adjust this look</button></p>}
             {issues.length > 0 && <p class="vs-input-hint">Finish {issues.length} effect{issues.length > 1 ? 's' : ''} before exporting. <button class="btn small" onClick={() => chooseEffect(settings.effects.find(e => e.id === issues[0].id)!)}>Fix effect</button></p>}
             <button class="btn primary vs-wide-btn" disabled={busy || rendering || uploading || !!captionMessage} aria-describedby={captionMessage ? 'vs-caption-pending' : undefined} onClick={() => render(false)}>{rendering ? 'Rendering…' : 'Export full video'}<StudioIcon name="export"/></button>
             <div class="vs-render-check"><h3>Check a short section first</h3><label class="field">Start at · seconds<input aria-label="Preview start in seconds" type="number" min="0" step="0.1" max={Math.max(0, duration - .1)} value={Number(time.toFixed(2))} onChange={e => jump(Number(e.currentTarget.value))}/></label><button class="btn" disabled={busy || rendering || uploading} onClick={() => render(true)}>Render 6 seconds</button></div>

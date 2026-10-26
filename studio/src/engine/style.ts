@@ -6,6 +6,11 @@ import pop from '../packs/pop.json';
 import sketch from '../packs/sketch.json';
 import terminal from '../packs/terminal.json';
 import volt from '../packs/volt.json';
+import natEditorial from '../packs/nat-editorial.json';
+import natWarm from '../packs/nat-warm.json';
+import natClean from '../packs/nat-clean.json';
+import natScrapbook from '../packs/nat-scrapbook.json';
+import natBold from '../packs/nat-bold.json';
 import { METRICS } from './metrics';
 import type { StylePack } from './pack';
 import { REFERENCE } from './reference';
@@ -40,6 +45,11 @@ export const PACKS: Record<string, StylePack> = {
   terminal: terminal as unknown as StylePack,
   glass: glass as unknown as StylePack,
   pop: pop as unknown as StylePack,
+  'nat-editorial': natEditorial as unknown as StylePack,
+  'nat-warm': natWarm as unknown as StylePack,
+  'nat-clean': natClean as unknown as StylePack,
+  'nat-scrapbook': natScrapbook as unknown as StylePack,
+  'nat-bold': natBold as unknown as StylePack,
   ...inFolder(),
 };
 

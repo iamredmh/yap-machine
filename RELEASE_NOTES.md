@@ -1,5 +1,33 @@
 # Release notes
 
+## 2026-10-26 — unified looks and steadier person cutouts
+
+The picker now presents six Yap Machine looks: Clean, Editorial, Bold,
+Handwritten, Glass and Terminal. Clean, Editorial, Bold and Handwritten provide
+caption, title, layout, finish and emphasis controls. Warmth is a finish choice.
+Checklist and Zoom each have two modes, reducing the picker to 20 effect choices
+while preserving all 22 stored variants. Existing style recipes remain valid;
+selecting a new look is a separate action from opening an old cut.
+
+The user-supplied design reference informed the new treatments. Its original
+codes are retained only as internal compatibility keys and in the
+[support reference](docs/brand-nat.md), which distinguishes available behavior
+from recipes requiring assets or new implementation. H1 and G6 require local
+macOS person masks. Full notices accompany the two added OFL fonts.
+
+Person cutouts now use accurate Vision segmentation at the video's full frame
+rate, with a versioned, validated cache. Text behind the speaker uses one video
+layer, and live playback waits for the current and next masks to decode before
+advancing. This removes the old 15fps mask holds and duplicate-video drift.
+
+Validation for this update: 157 engine tests and 315 editor/renderer tests pass,
+both TypeScript checks pass, and the production editor builds. A 132-frame moving
+fixture was rendered with the old and new pipelines: the new version has one mask
+per frame, no missing settled headline, and no whole-frame alpha flash in the
+frame comparison. Browser checks covered saved emphasis, effect modes, replay
+and seeking. These short-clip checks do not guarantee perfect segmentation on
+all footage. The QA figures in the entry below describe the earlier baseline.
+
 ## 2026-10-26 — source-install update
 
 Install or update from this GitHub checkout using `./scripts/install`, then open

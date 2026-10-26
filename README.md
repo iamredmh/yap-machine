@@ -120,8 +120,9 @@ Preparing new footage and speech-based quality checks need whisper.cpp and a mod
 
 The engine handles long cuts, vertical shorts, captions, name cards,
 translated captions supplied by your agent and screen recordings. The desk handles review, comparison,
-notes, and direct style/effect editing. This checkout includes all six Style
-Studio packs and 22 timed effects, with local preview and styled export.
+notes, and direct style/effect editing. Choose from six Yap Machine looks and
+20 effect choices, with local preview and styled export. Earlier saved styles
+and all 22 effect variants remain supported.
 
 See [release notes](RELEASE_NOTES.md) for the latest changes, verification scope
 and known limits. The October 2026 macOS QA pass ran 378 automated tests and
@@ -143,13 +144,20 @@ use the absolute path to `scripts/yap-machine` when working elsewhere. No global
 
 ## Styles and effects
 
-Open **Style & export** in the desk to apply Volt, Ledger, Sketch, Terminal, Glass or Pop
-to your cut, choose its accent and motion, and add any of the 22 timed effects
+Open **Style & export** in the desk to choose Clean, Editorial, Bold, Handwritten,
+Glass or Terminal. Choose its accent and motion, and add a timed effect
 in the effect library, including a headline behind the speaker and an animated counter. Effects have editable timing, text, checklist items,
 chart values, and image/video uploads where needed. Place a moment on a
 transcript line or the playback position. Compare against the original, undo edits,
 and export a separate styled MP4. The video stays visible beside the editing tools.
 Unfinished style/effect edits recover after a refresh; Save writes them to the project.
+
+Clean, Editorial, Bold and Handwritten let you change captions, opening titles,
+layout, finish, emphasis words and preferred caption position separately. Warmth is a finish,
+so it does not require a separate collection of looks. Checklist has card and
+full-screen modes; Zoom has punch-in and camera modes. Existing cuts retain
+their saved style and mode. The [treatment reference](docs/brand-nat.md) explains
+these controls and the support boundaries of the design recipes that informed them.
 
 The **Footage → Review → Style & export** navigation follows the editing flow.
 Footage supports local drag-and-drop imports (up to 30 video/audio files and 500 MB

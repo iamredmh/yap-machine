@@ -1,0 +1,26 @@
+[
+  {
+    "file": "InterTight-800-normal.woff2",
+    "sha256": "83d548cd73ef2e039167db3adb5ea9d7a7870466ffc8a162c9820bc348938aaf",
+    "origin": "User-supplied Brand Nat Style Pack.zip; font binary preserved unchanged",
+    "weight": 800,
+    "style": "normal",
+    "license_file": "InterTight-OFL.txt",
+    "license_source": "https://raw.githubusercontent.com/google/fonts/main/ofl/intertight/OFL.txt",
+    "license_retrieved": "2026-10-26",
+    "license_sha256": "50240ab035cf1b6b3307940235481d515c4b6de3ab1fa843dbe59e7892cb9d58",
+    "metrics_note": "Inter Tight is variable; advance metrics were generated at wght800. Instrument Serif is static italic400."
+  },
+  {
+    "file": "InstrumentSerif-400-italic.woff2",
+    "sha256": "6ee678c33f388dd7ba59700ebea635deb98821baafd817b09891f7927177f702",
+    "origin": "User-supplied Brand Nat Style Pack.zip; font binary preserved unchanged",
+    "weight": 400,
+    "style": "italic",
+    "license_file": "InstrumentSerif-OFL.txt",
+    "license_source": "https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentserif/OFL.txt",
+    "license_retrieved": "2026-10-26",
+    "license_sha256": "129ed7618959716959f2941fdd5b49e0ad6e6c1d78726761786a00253d865521",
+    "metrics_note": "Inter Tight is variable; advance metrics were generated at wght800. Instrument Serif is static italic400."
+  }
+]

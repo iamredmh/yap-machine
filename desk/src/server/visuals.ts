@@ -10,6 +10,7 @@ import { runEngine } from '../core/engine.js';
 import { readProject, readVersion } from '../core/workspace.js';
 import { contentType, mediaSecurityHeaders, sendFile } from './files.js';
 import { personMatteCapabilities } from './person-matte.js';
+import { brandNatNeedsMask, isNatPreset, natPresets, natCaptions, natHooks, natLayouts, natFinishes, natPositions, resolveBrandNat } from '../core/brand-nat.js';
 const anchor = z.object({ source: z.string().min(1), time: z.number().finite().min(0), occurrence: z.number().int().min(0).default(0) });
 export const EffectSchema = z.object({
     id: z.string().regex(/^[\w-]{1,80}$/), type: z.string(), at: z.number().finite().min(0), duration: z.number().finite().min(.1).max(60),
@@ -18,10 +19,18 @@ export const EffectSchema = z.object({
     items: z.array(z.string().trim().min(1).max(80)).max(8).default([]), values: z.array(z.number().finite().min(-1e12).max(1e12)).max(12).default([]),
     asset: z.string().optional(), anchor: anchor.optional(),
 });
+export const BrandNatSchema = z.object({
+    caption: z.enum(natCaptions), hook: z.enum(natHooks), layout: z.enum(natLayouts), finish: z.enum(natFinishes),
+    title: z.string().max(120), subtitle: z.string().max(100), emphasis: z.string().max(160), position: z.enum(natPositions),
+}).partial().strict();
 export const VisualSchema = z.object({
-    preset: z.enum(['original', 'volt', 'ledger', 'sketch', 'terminal', 'glass', 'pop']).default('original'),
+    preset: z.enum(['original', 'volt', 'ledger', 'sketch', 'terminal', 'glass', 'pop', ...natPresets]).default('original'),
     motion: z.enum(['subtle', 'balanced', 'bold']).default('balanced'), accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    brandNat: BrandNatSchema.optional(),
     effects: z.array(EffectSchema).max(100).default([]),
+}).superRefine((value, ctx) => {
+    if (value.brandNat !== undefined && !isNatPreset(value.preset))
+        ctx.addIssue({ code: 'custom', path: ['brandNat'], message: 'Choose an editable Yap look before customising its treatments.' });
 });
 type Visual = z.infer<typeof VisualSchema>;
 const here = dirname(fileURLToPath(import.meta.url));
@@ -63,6 +72,15 @@ export async function validateVisual(home: string, id: string, version: string, 
     if (!tl)
         throw new NotFoundError('cut', version);
     const cat = await visualCatalog(), types = new Map<string, any>(cat.effects.map((e: any) => [e.id, e]));
+    const brandNat = resolveBrandNat(settings.preset, settings.brandNat, [...cat.styles, ...(cat.legacyStyles ?? [])].find((s: any) => s.id === settings.preset)?.brandNat);
+    if (brandNat) {
+        settings = { ...settings, brandNat };
+        if (brandNatNeedsMask(settings.preset, brandNat)) {
+            const capability = personMatteCapabilities();
+            if (!capability.personMatte)
+                throw new InvalidError(`${capability.personMatteReason} Choose another opening title and finish to use this look here.`);
+        }
+    }
     const ids = new Set<string>();
     for (const e of settings.effects) {
         if (ids.has(e.id))
@@ -214,6 +232,10 @@ export function installVisuals(app: Hono, home: string, emit: (e: {
         const id = c.req.param('p'), v = c.req.param('v'), cut = await target(id, v);
         const style = await json(join(home, id, 'style.json'), {});
         const config = { rev: 0, ...await json(join(cut, 'visuals.json'), { schema: 1, preset: style.visual_style ?? 'original', motion: 'balanced', ...style.visual_defaults, effects: [] }) };
+        if (isNatPreset(config.preset)) {
+            const cat = await visualCatalog();
+            config.brandNat = resolveBrandNat(config.preset, config.brandNat, [...cat.styles, ...(cat.legacyStyles ?? [])].find((s: any) => s.id === config.preset)?.brandNat);
+        }
         const raw = await readFile(join(cut, 'timeline.json'), 'utf8');
         const timelineRev = createHash('sha256').update(raw).digest('hex');
         let result = null;
@@ -243,8 +265,8 @@ export function installVisuals(app: Hono, home: string, emit: (e: {
             if (b.applyToProject) {
                 const p = join(home, id, 'style.json');
                 const s = await json(p, {});
-                const { preset, motion, accent } = settings;
-                await atomic(p, { ...s, visual_style: preset, visual_defaults: { preset, motion, accent } });
+                const { preset, motion, accent, brandNat } = settings;
+                await atomic(p, { ...s, visual_style: preset, visual_defaults: { preset, motion, accent, ...(brandNat ? { brandNat } : {}) } });
             }
             emit({ type: 'project', project: id });
             return c.json({ config });

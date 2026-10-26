@@ -9,11 +9,13 @@ import { z } from 'zod';
 import { runEngine } from '../core/engine.js';
 import { personMatteCapabilities } from './person-matte.js';
 vi.mock('../core/engine.js', () => ({ runEngine: vi.fn(async () => ({ code: 0, out: '' })) }));
+vi.mock('./person-matte.js', () => ({ personMatteCapabilities: vi.fn() }));
 let home: string, app: Hono;
 const request = (path: string, body?: unknown) => app.request('http://localhost' + path, body === undefined ? undefined : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const url = '/api/projects/p/versions/v1/visuals';
 beforeEach(async () => {
     vi.clearAllMocks();
+    vi.mocked(personMatteCapabilities).mockReturnValue({ personMatte: true, personMatteReason: null });
     home = await mkdtemp(join(tmpdir(), 'yap-visuals-api-'));
     await mkdir(join(home, 'p', 'cuts', 'v1'), { recursive: true });
     await writeFile(join(home, 'p', 'project.json'), JSON.stringify({ sources: [] }));
@@ -77,10 +79,65 @@ describe('styles and effects API', () => {
         expect((await request(path)).status).toBe(200);
         expect(runEngine).toHaveBeenCalledTimes(3);
     });
-    it('ships six actual style packs and twenty-two effects with local cutout availability', async () => {
-        const c = await visualCatalog(); expect(c.styles).toHaveLength(6); expect(new Set(c.effects.map((e: any) => e.id)).size).toBe(22);
+    it('ships six distinct looks and retains saved recipes and every effect mode', async () => {
+        const c = await visualCatalog(); expect(c.styles).toHaveLength(6); expect(c.legacyStyles).toHaveLength(5); expect(c.effects.filter((e: any) => !e.pickerHidden)).toHaveLength(20); expect(new Set(c.effects.map((e: any) => e.id)).size).toBe(22);
         const d = await (await request('/api/visuals/catalog')).json();
         expect(d.capabilities).toEqual(personMatteCapabilities());
+    });
+    it('saves all five native looks with complete, preset-specific defaults', async () => {
+        const catalog = await visualCatalog();
+        let rev = 0;
+        for (const style of [...catalog.styles, ...catalog.legacyStyles].filter((s: any) => s.brandNat)) {
+            const response = await save({ preset: style.id, effects: [] }, rev++);
+            expect(response.status).toBe(200);
+            const { config } = await response.json();
+            expect(config.preset).toBe(style.id);
+            expect(config.brandNat).toEqual(style.brandNat);
+            expect((await (await request(url)).json()).config).toEqual(config);
+        }
+    });
+    it('round-trips a custom recipe into future-cut defaults and the render snapshot', async () => {
+        const current = await (await request(url)).json();
+        const brandNat = { caption: 'C3', hook: 'H10', layout: 'L6', finish: 'G4', title: 'My own headline', subtitle: 'A supporting thought', position: 'bottom', emphasis: 'idea, story' };
+        const settings = { preset: 'nat-editorial', motion: 'subtle', accent: '#abc123', brandNat, effects: [] };
+        const r = await request(url, { rev: 0, settings, timelineRev: current.timelineRev, applyToProject: true });
+        expect(r.status).toBe(200);
+        expect((await r.json()).config.brandNat).toEqual(brandNat);
+        const defaults = JSON.parse(await readFile(join(home, 'p', 'style.json'), 'utf8')).visual_defaults;
+        expect(defaults).toEqual({ preset: settings.preset, motion: settings.motion, accent: settings.accent, brandNat });
+        await mkdir(join(home, 'p', 'cuts', 'v2'));
+        await writeFile(join(home, 'p', 'cuts', 'v2', 'timeline.json'), await readFile(join(home, 'p', 'cuts', 'v1', 'timeline.json')));
+        const next = await (await request(url.replace('v1', 'v2'))).json();
+        expect(next.config.brandNat).toEqual(brandNat);
+        expect(next.config.effects).toEqual([]);
+        let finish!: (value: { code: number; out: string }) => void;
+        vi.mocked(runEngine).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+        expect((await request('/api/projects/p/versions/v1/visual-render', { preview: false, rev: 1 })).status).toBe(202);
+        const args = vi.mocked(runEngine).mock.calls[0][0];
+        const snapshot = JSON.parse(await readFile(args[args.indexOf('--settings') + 1], 'utf8'));
+        expect(snapshot.brandNat).toEqual(brandNat);
+        expect(snapshot.preset).toBe('nat-editorial');
+        finish({ code: 0, out: '' });
+    });
+    it('rejects invalid codes, types, overlong text and unknown recipe fields instead of dropping them', async () => {
+        for (const brandNat of [{ caption: 'C10' }, { hook: 'H2' }, { layout: 'L1' }, { finish: 'G8' }, { position: 'center' },
+            { title: 42 }, { subtitle: false }, { emphasis: false }, { emphasis: 'x'.repeat(161) }, { title: 'x'.repeat(121) }, { subtitle: 'x'.repeat(101) }, { hook: null }, { capton: 'C1' }, null, []]) {
+            expect((await save({ preset: 'nat-editorial', brandNat, effects: [] })).status).toBe(400);
+        }
+        expect((await save({ preset: 'nat-missing', effects: [] })).status).toBe(400);
+        expect((await save({ ...good, brandNat: { caption: 'C1' } })).status).toBe(400);
+    });
+    it('gates only the two mask treatments on an unsupported host, including previously saved exports', async () => {
+        vi.mocked(personMatteCapabilities).mockReturnValue({ personMatte: false, personMatteReason: 'Automatic person cutouts need macOS 12 or later.' });
+        for (const brandNat of [{ hook: 'H1' }, { finish: 'G6' }]) {
+            const response = await save({ preset: 'nat-clean', brandNat, effects: [] });
+            expect(response.status).toBe(400);
+            expect((await response.json()).message).toMatch(/macOS 12.*another opening title and finish/);
+        }
+        expect((await save({ preset: 'nat-clean', brandNat: { hook: 'none' }, effects: [] })).status).toBe(200);
+        await writeFile(join(home, 'p', 'cuts', 'v1', 'visuals.json'), JSON.stringify({ preset: 'nat-clean', brandNat: { finish: 'G6' }, effects: [], rev: 2 }));
+        expect((await request('/api/projects/p/versions/v1/visual-render', { preview: false, rev: 2 })).status).toBe(400);
+        expect(runEngine).not.toHaveBeenCalled();
     });
     it('saves behind-person text placement without stripping its controls', async () => {
         const effect = { ...good.effects[0], type: 'text-behind-person', text: 'My story', textSize: .22, textY: .4 };

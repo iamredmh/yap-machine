@@ -1,6 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { changeHistory, clampTime, effectIssue, historyOf, recoverDraft, travelHistory } from './studio-state.js';
+import { changeHistory, clampTime, effectIssue, historyOf, needsPresenterMask, recoverDraft, travelHistory, visualSettingsOf } from './studio-state.js';
 describe('editing history', () => {
+  it('recovers a complete Nat recipe, undoes edits and restores it after switching away', () => {
+    const original = visualSettingsOf({ preset: 'nat-warm', brandNat: { title: 'Keep this title', position: 'bottom' }, effects: [] });
+    let h = changeHistory(historyOf(original), visualSettingsOf({ ...original, brandNat: { ...original.brandNat, caption: 'C3', title: 'A new title' } }));
+    const edited = h.present;
+    h = travelHistory(h, 'undo');
+    expect(h.present.brandNat).toMatchObject({ title: 'Keep this title', caption: 'C6', position: 'bottom' });
+    h = travelHistory(h, 'redo');
+    h = changeHistory(h, visualSettingsOf({ ...h.present, preset: 'original', brandNat: undefined }));
+    expect(h.present.brandNat).toBeUndefined();
+    h = travelHistory(h, 'undo');
+    expect(h.present).toEqual(edited);
+    const draft = JSON.stringify({ rev: 2, timelineRev: 'abc', settings: edited });
+    expect(visualSettingsOf(recoverDraft(draft, 2, 'abc'))).toEqual(edited);
+    expect(original.brandNat?.title).toBe('Keep this title');
+  });
+  it('requests a presenter source for either Nat mask choice and stops after undo', () => {
+    const original = visualSettingsOf({ preset: 'nat-clean', effects: [] });
+    expect(needsPresenterMask(original, [])).toBe(false);
+    for (const patch of [{ hook: 'H1' }, { finish: 'G6' }]) {
+      const h = changeHistory(historyOf(original), visualSettingsOf({ ...original, brandNat: { ...original.brandNat, ...patch } }));
+      expect(needsPresenterMask(h.present, [])).toBe(true);
+      expect(needsPresenterMask(travelHistory(h, 'undo').present, [])).toBe(false);
+    }
+    const kinds = [{ id: 'paper-cutout', matte: true }];
+    const withEffect = visualSettingsOf({ ...original, effects: [{ type: 'paper-cutout', enabled: true }] });
+    expect(needsPresenterMask(withEffect, kinds)).toBe(true);
+    expect(needsPresenterMask(visualSettingsOf({ ...original, effects: [{ type: 'paper-cutout', enabled: false }] }), kinds)).toBe(false);
+  });
   it('undoes removal and branches correctly after undo', () => {
     const original = { preset: 'glass', effects: [{ id: 'one' }] };
     let h = changeHistory(historyOf(original), { ...original, effects: [] });

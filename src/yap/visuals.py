@@ -34,6 +34,35 @@ def catalog() -> dict:
     return read_json(studio_dir() / "catalog.json")
 
 
+def brand_nat_settings(config: dict, cat: dict | None = None) -> dict | None:
+    """Resolve the saved recipe using the same defaults exposed in the catalog."""
+    cat = cat or catalog()
+    style = next((s for s in [*cat["styles"], *cat.get("legacyStyles", [])] if s["id"] == config.get("preset")), None)
+    if not style or "brandNat" not in style:
+        if config.get("brandNat") is not None:
+            raise YapError("Choose an editable Yap look before setting its treatments")
+        return None
+    raw = config.get("brandNat", {})
+    if not isinstance(raw, dict):
+        raise YapError("Look settings must be an object")
+    defaults = style["brandNat"]
+    if set(raw) - set(defaults):
+        raise YapError("Unknown look setting: " + ", ".join(sorted(set(raw) - set(defaults))))
+    result = {**defaults, **raw}
+    for field, options in cat["brandNat"]["options"].items():
+        if not isinstance(result.get(field), str) or result[field] not in {o["code"] for o in options}:
+            raise YapError(f"Choose a supported {field}")
+    for field, limit in [("title", 120), ("subtitle", 100), ("emphasis", 160)]:
+        if not isinstance(result.get(field), str) or len(result[field]) > limit:
+            raise YapError(f"Look {field} must be text up to {limit} characters")
+        result[field] = result[field].strip()
+    return result
+
+
+def brand_nat_needs_matte(recipe: dict | None, offset: float = 0) -> bool:
+    return bool(recipe and (recipe["finish"] == "G6" or (recipe["hook"] == "H1" and offset < 3)))
+
+
 def finite(value, label: str, lo: float, hi: float) -> float:
     if isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value) or not lo <= value <= hi:
         raise YapError(f"{label} must be a number between {lo:g} and {hi:g}")
@@ -81,8 +110,9 @@ def validate(project: Project, timeline: dict, config: dict) -> dict:
         raise YapError("Visual settings must be an object")
     cat = catalog()
     pack = config.get("preset", "original")
-    if pack not in ["original", *[s["id"] for s in cat["styles"]]]:
+    if pack not in ["original", *[s["id"] for s in [*cat["styles"], *cat.get("legacyStyles", [])]]]:
         raise YapError(f"Unknown style: {pack}")
+    nat = brand_nat_settings({**config, "preset": pack}, cat)
     motion = config.get("motion", "balanced")
     if not isinstance(motion, str) or motion not in {"subtle", "balanced", "bold"}:
         raise YapError("Choose Subtle, Balanced or Bold motion")
@@ -140,7 +170,12 @@ def validate(project: Project, timeline: dict, config: dict) -> dict:
                 raise YapError("Place Zoom through cut across an edit boundary")
             e["joinAt"] = min(joins, key=lambda t: abs(t - e["at"] - e["duration"] / 2))
         resolved.append(e)
-    return {**config, "schema": 1, "preset": pack, "motion": motion, "effects": resolved}
+    result = {**config, "schema": 1, "preset": pack, "motion": motion, "effects": resolved}
+    if nat is not None:
+        result["brandNat"] = nat
+    else:
+        result.pop("brandNat", None)
+    return result
 
 
 def load_config(project: Project, version: str, timeline: dict) -> dict:
@@ -213,35 +248,93 @@ def person_matte_capability() -> dict:
     return {"available": True, "reason": None}
 
 
+PERSON_MATTE_VERSION = 2
+
+
+def _matte_cache_metadata(dest: Path, contract: dict) -> dict | None:
+    """A done marker is insufficient: every sequential PNG must be intact."""
+    import cv2
+    try:
+        meta = read_json(dest / "done.json")
+        if not isinstance(meta, dict) or any(meta.get(k) != v for k, v in contract.items()):
+            return None
+        count = meta.get("count")
+        if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+            return None
+        files = sorted((dest / "masks").glob("*.png"))
+        if len(files) != count or any(p.name != f"{i:06d}.png" for i, p in enumerate(files, 1)):
+            return None
+        size = (meta.get("width"), meta.get("height"))
+        for path in files:
+            with path.open('rb') as stream:
+                if stream.read(8) != b'\x89PNG\r\n\x1a\n':
+                    return None
+            image = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+            if image is None or (image.shape[1], image.shape[0]) != size:
+                return None
+        return meta
+    except (OSError, ValueError, SyntaxError, cv2.error):
+        return None
+
+
 def prepare_matte(plate: Path, work: Path, fps: float) -> dict:
-    """Native, local person segmentation. Cache belongs to this immutable plate."""
+    """One accurate native mask per output frame, published as a complete cache."""
     capability = person_matte_capability()
     if not capability['available']:
         raise YapError(capability['reason'])
     renderer = studio_dir()
     source = renderer / "person-mask.swift"
+    sample_fps = finite(fps, "Person mask frame rate", 1, 240)
+    source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+    contract = {"version": PERSON_MATTE_VERSION, "fps": sample_fps, "pipeline": source_hash}
     cache = work.parent / "person-masks"
     cache.mkdir(parents=True, exist_ok=True)
     with plate.open('rb') as stream:
-        key = hashlib.file_digest(stream, 'sha256').hexdigest()[:20]
+        plate_hash = hashlib.file_digest(stream, 'sha256').hexdigest()
+    key = hashlib.sha256(json.dumps({**contract, "plate": plate_hash}, sort_keys=True).encode()).hexdigest()[:20]
     dest = cache / key
-    if not (dest / "done.json").exists():
-        dest.mkdir(exist_ok=True)
-        frames = dest / "frames"
-        masks = dest / "masks"
-        frames.mkdir(exist_ok=True)
-        masks.mkdir(exist_ok=True)
-        sample_fps = min(15, fps)
-        run(["ffmpeg", "-v", "error", "-y", "-i", str(plate), "-vf", f"fps={sample_fps},scale=512:-2", str(frames / "%06d.png")])
-        binary = cache / ("person-mask-" + hashlib.sha256(source.read_bytes()).hexdigest()[:10])
-        if not binary.exists():
-            run(["swiftc", "-O", str(source), "-o", str(binary)])
-        run([str(binary), str(frames), str(masks)])
-        if not list(masks.glob("*.png")):
-            raise YapError("No person masks could be produced for this footage")
-        write_json(dest / "done.json", {"fps": sample_fps, "count": len(list(masks.glob('*.png')))})
-        shutil.rmtree(frames, ignore_errors=True)
-    return {"dir": str(dest / "masks"), **read_json(dest / "done.json")}
+    # Preview and export may request the same plate concurrently. Build outside
+    # the public cache path, then rename once the entire sequence is verified.
+    import fcntl
+    import tempfile
+    with (cache / f".{key}.lock").open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        meta = _matte_cache_metadata(dest, contract)
+        if meta is None:
+            with tempfile.TemporaryDirectory(prefix=f".pending-{key}-", dir=cache) as temp:
+                staging = Path(temp)
+                frames, masks = staging / "frames", staging / "masks"
+                frames.mkdir()
+                masks.mkdir()
+                # No 15fps hold or forced downscale: the segmentation sees the
+                # same frame and full source detail as the video compositor.
+                run(["ffmpeg", "-v", "error", "-y", "-i", str(plate), "-vf",
+                     f"fps={sample_fps:.12g}:start_time=0:round=near:eof_action=pass", str(frames / "%06d.png")])
+                frame_names = sorted(p.name for p in frames.glob("*.png"))
+                if not frame_names:
+                    raise YapError("No video frames could be read for person cutouts")
+                binary = cache / ("person-mask-" + source_hash[:16])
+                if not binary.exists():
+                    compiled = staging / "person-mask"
+                    run(["swiftc", "-O", str(source), "-o", str(compiled)])
+                    compiled.replace(binary)
+                run([str(binary), str(frames), str(masks)])
+                if sorted(p.name for p in masks.glob("*.png")) != frame_names:
+                    raise YapError("The person cutout sequence is incomplete. Try preparing the preview again.")
+                import cv2
+                first = cv2.imread(str(masks / frame_names[0]), cv2.IMREAD_UNCHANGED)
+                if first is None:
+                    raise YapError("The person cutout sequence contains an unreadable mask. Try preparing the preview again.")
+                height, width = first.shape[:2]
+                write_json(staging / "done.json", {**contract, "count": len(frame_names), "width": width, "height": height})
+                meta = _matte_cache_metadata(staging, contract)
+                if meta is None:
+                    raise YapError("The person cutout sequence contains an unreadable mask. Try preparing the preview again.")
+                shutil.rmtree(frames)
+                if dest.exists():
+                    shutil.rmtree(dest)
+                staging.replace(dest)
+        return {"dir": str(dest / "masks"), **meta}
 
 
 def visual_plan(project: Project, version: str, plate: Path, work: Path, timeline: dict, config: dict,
@@ -271,12 +364,20 @@ def visual_plan(project: Project, version: str, plate: Path, work: Path, timelin
                 from .media import probe
                 e["assetDuration"] = probe(Path(e["asset"]))["duration"]
         effects.append(e)
-    mask = prepare_matte(plate, work, timeline["fps"]) if any(e["type"] in matte_types for e in effects) else None
+    nat = brand_nat_settings(config)
+    mask = prepare_matte(plate, work, timeline["fps"]) if (any(e["type"] in matte_types for e in effects)
+            or brand_nat_needs_matte(nat, offset)) else None
     people = read_json(project.root / "people.json") if (project.root / "people.json").exists() else []
     from .overlays import _phrase_time
     names = {p["id"]: p for p in people}
     thirds = []
     full_timeline = read_json(project.cut_dir(version) / "timeline.json") if offset else timeline
+    if nat is not None and cap_spec and 0 < offset < 3 and nat["hook"] != "none":
+        # A preview starting inside the opening must keep the same automatic
+        # title as the complete export, rather than derive it from later words.
+        opening = [w["text"] for w in output_words(project, full_timeline) if w["text"].strip()][:9]
+        nat["title"] = nat["title"] or " ".join(opening[:4])
+        nat["subtitle"] = nat["subtitle"] or " ".join(opening[4:9])
     for lt in edl.get("lower_thirds", []):
         if lt.get("person") not in names:
             raise YapError(f"Unknown name card person: {lt.get('person')}")
@@ -290,6 +391,9 @@ def visual_plan(project: Project, version: str, plate: Path, work: Path, timelin
                 "words": words if cap_spec else [], "translation": translation if cap_spec else None, "effects": effects, "mask": mask,
                 "captionStyle": resolve_caption_style(project, timeline, cap_spec) if original and cap_spec else None,
                 "thirds": thirds, "scenes": config.get("scenes", []), "shoot": {"width": w, "height": h, **face_measurements(plate, w, h)}}
+    if nat is not None:
+        manifest["brandNat"] = nat
+        manifest["timelineOffset"] = offset
     return manifest
 
 
