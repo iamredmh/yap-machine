@@ -35,7 +35,7 @@ describe('live styles preview', () => {
         }
     });
     it('keeps custom title, caption and mask choices intact until real cutout media is ready', () => {
-        const brandNat = { ...brandNatDefaults['nat-editorial'], title: 'Make this yours', subtitle: 'Start today', hook: 'H1', caption: 'C3', layout: 'L6', finish: 'G6', position: 'top' };
+        const brandNat = { ...brandNatDefaults['nat-editorial'], title: 'Make this yours', subtitle: 'Start today', hook: 'H1', caption: 'C3', layout: 'L6', finish: 'G6', position: 'top', subjectOverlap: true };
         const edited = { ...settings, preset: 'nat-editorial', brandNat };
         const waiting = livePlan(source, edited, 'demo', 'http://localhost');
         expect(waiting.brandNat).toEqual(brandNat);

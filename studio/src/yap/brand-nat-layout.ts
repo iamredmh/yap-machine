@@ -4,10 +4,10 @@ export type BrandNatConfig = {
   caption: 'C1'|'C2'|'C3'|'C4'|'C5'|'C6'|'C7'|'C8'|'C9';
   hook: 'none'|'H1'|'H3'|'H4'|'H5'|'H8'|'H10';
   layout: 'L4'|'L5'|'L6'; finish: 'G1'|'G2'|'G3'|'G4'|'G5'|'G6'|'G7';
-  title: string; subtitle: string; emphasis?: string; position: 'auto'|'top'|'bottom';
+  title: string; subtitle: string; emphasis?: string; subjectOverlap?: boolean; position: 'auto'|'top'|'bottom';
 };
 export type Rect = { x:number; y:number; width:number; height:number };
-export type NatShoot = { width:number; height:number; faceX:number; crown:number; eyes:number; chin:number };
+export type NatShoot = { width:number; height:number; faceX:number; crown:number; maskCrown?:number; eyes:number; chin:number };
 export const bounded = (n:number,a:number,b:number) => Math.max(a,Math.min(b,n));
 export function hookVisibility(time:number,duration:number,offset=0):number {
   const end=Math.min(3,duration+offset), age=time+offset;
@@ -39,23 +39,38 @@ export function currentCaption(groups:readonly NatWord[][],time:number):NatWord[
 export function captionBlockHeight(kind:BrandNatConfig['caption'],unit:number):number {
   return unit*(kind==='C9'?.42:kind==='C6'||kind==='C7'?.23:kind==='C1'?.20:kind==='C2'?.15:kind==='C8'?.075:.16);
 }
-export function footageGeometry(W:number,H:number,shoot:NatShoot,config:Pick<BrandNatConfig,'layout'|'finish'>){
+export function footageGeometry(W:number,H:number,shoot:NatShoot,config:Pick<BrandNatConfig,'layout'|'finish'|'subjectOverlap'>){
   const top=config.layout==='L5'?.25:config.layout==='L6'?.37:0;
   const sidebar=W/H>=1.25&&config.layout!=='L4';
   const framed=config.layout==='L4' && (config.finish==='G3'||config.finish==='G7');
   const rect:Rect=sidebar?{x:W*.44,y:0,width:W*.56,height:H}:{x:framed?W*.04:0,y:top*H+(framed?H*.035:0),width:W*(framed?.92:1),height:H*(1-top)*(framed?.93:1)};
   const cover=Math.max(rect.width/shoot.width,rect.height/shoot.height);
   // A very close shot fits rather than cutting off the head to fill a band.
-  const scale=(shoot.chin-shoot.crown)*cover>rect.height*.76
+  let scale=(shoot.chin-shoot.crown)*cover>rect.height*.76
     ? Math.min(rect.width/shoot.width,rect.height/shoot.height,rect.height*.5/Math.max(1,shoot.chin-shoot.crown)):cover;
+  // Only top title bands can share their edge with the speaker. Keep the
+  // frame below filled when possible, but never enlarge a close face to do it.
+  let overlap=config.subjectOverlap&&!sidebar&&top>0?Math.min(Math.min(W,H)*.08,rect.y*.24):0;
+  const measuredCrown=shoot.maskCrown;
+  const nativeCrown=typeof measuredCrown==='number'&&Number.isFinite(measuredCrown)&&measuredCrown>=0&&measuredCrown<shoot.eyes&&measuredCrown<shoot.chin?measuredCrown:shoot.crown;
+  if(overlap){
+    const overlapScale=Math.max(rect.width/shoot.width,(rect.height+overlap)/Math.max(1,shoot.height-nativeCrown));
+    // An extreme close-up cannot fill the lower frame and retain the face.
+    // Keep the ordinary fitted composition in that case, without an empty foot.
+    if((shoot.chin-nativeCrown)*overlapScale>rect.height*.76)overlap=0;
+    else scale=overlapScale;
+  }
+  // Refined hair position belongs only to this opt-in composition. Existing
+  // fits, captions and side panels retain their original face measurements.
+  const crown=overlap?nativeCrown:shoot.crown;
   const width=shoot.width*scale,height=shoot.height*scale;
   const x=width>=rect.width?bounded(rect.width*.5-shoot.faceX*scale,rect.width-width,0):(rect.width-width)/2;
   const imageMin=Math.min(0,rect.height-height),imageMax=Math.max(0,rect.height-height);
   const yMin=Math.max(imageMin,-shoot.crown*scale),yMax=Math.min(imageMax,rect.height-shoot.chin*scale);
-  const y=bounded(rect.height*.37-shoot.eyes*scale,yMin,yMax);
-  const face={x:rect.x+x+shoot.faceX*scale,y:rect.y+y+shoot.crown*scale,
+  const y=overlap?-crown*scale-overlap:bounded(rect.height*.37-shoot.eyes*scale,yMin,yMax);
+  const face={x:rect.x+x+shoot.faceX*scale,y:rect.y+y+crown*scale,
     bottom:rect.y+y+shoot.chin*scale,eyes:rect.y+y+shoot.eyes*scale};
-  return {rect,image:{x,y,width,height},face,scale,sidebar};
+  return {rect,image:{x,y,width,height},face,scale,sidebar,overlap};
 }
 export function captionRegion(args:{W:number;H:number;face:{y:number;bottom:number};height:number;
   position:BrandNatConfig['position'];hookReserved?:boolean;effects?:readonly string[];rect?:Rect;sidebar?:boolean}){

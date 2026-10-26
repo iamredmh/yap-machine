@@ -19,11 +19,15 @@ describe('editing history', () => {
   it('requests a presenter source for either Nat mask choice and stops after undo', () => {
     const original = visualSettingsOf({ preset: 'nat-clean', effects: [] });
     expect(needsPresenterMask(original, [])).toBe(false);
-    for (const patch of [{ hook: 'H1' }, { finish: 'G6' }]) {
+    for (const patch of [{ hook: 'H1' }, { finish: 'G6' }, { layout: 'L5', subjectOverlap: true }]) {
       const h = changeHistory(historyOf(original), visualSettingsOf({ ...original, brandNat: { ...original.brandNat, ...patch } }));
       expect(needsPresenterMask(h.present, [])).toBe(true);
       expect(needsPresenterMask(travelHistory(h, 'undo').present, [])).toBe(false);
     }
+    const overlap = visualSettingsOf({ ...original, brandNat: { layout: 'L6', subjectOverlap: true } });
+    const recovered = visualSettingsOf(recoverDraft(JSON.stringify({ rev: 2, timelineRev: 'abc', settings: overlap }), 2, 'abc'));
+    expect(recovered.brandNat?.subjectOverlap).toBe(true);
+    expect(needsPresenterMask(recovered, [], { width: 1920, height: 1080 })).toBe(false);
     const kinds = [{ id: 'paper-cutout', matte: true }];
     const withEffect = visualSettingsOf({ ...original, effects: [{ type: 'paper-cutout', enabled: true }] });
     expect(needsPresenterMask(withEffect, kinds)).toBe(true);

@@ -79,11 +79,22 @@ C2 and C9 fall back to C5 rather than inventing word timing. C3 disables added
 captions, never text already in the source.
 
 H1 places the opening title behind the speaker while that title is visible.
-G6 grades the room separately from the person throughout the cut. Both require
+G6 grades the room separately from the person throughout the cut. The optional
+`subjectOverlap: true` setting lets the speaker's crown cross the edge of an
+upper title panel in L5 or L6. It defaults to false and has no effect with L4
+or a landscape side panel. Extremely close framing keeps the ordinary fitted
+shot if an overlap would crop the face or leave a gap below the video. These treatments require
 a locally generated person mask, currently available on macOS 12+ with Apple
 Command Line Tools. The Desk shows availability and explains missing tools.
 Other choices require no mask unless another timed effect needs one. Review
 hair, motion blur, overlapping people and foreground edges in the actual video.
+
+Text behind the speaker is an optional effect, not a required part of a look.
+For example, use Editorial's captions on their own, or Bold's title panel with
+the speaker overlap, without adding a second headline behind the head. Switching
+looks preserves effects you added deliberately; remove an unwanted effect in
+the editor. Regression examples that combine a headline and counter with every
+look test compatibility, rather than recommending those combinations.
 
 ## Saved settings and agent use
 
@@ -106,7 +117,8 @@ Only the configurable `nat-*` recipe IDs accept `brandNat`, including retained
     "title": "",
     "subtitle": "",
     "emphasis": "",
-    "position": "auto"
+    "position": "auto",
+    "subjectOverlap": false
   },
   "effects": []
 }

@@ -21,6 +21,31 @@ The regression fixture used the same two-second, 24 fps clip and native 48-frame
 
 These measurements cover the reported regression in local Chrome. They do not establish that all footage, effect combinations or browsers have been exhaustively tested.
 
+## Style examples and optional speaker overlap
+
+The headline-plus-counter combinations above are compatibility tests, not the
+recommended treatment for every look. The follow-up gallery separates those
+tests from six simpler examples: a behind-person title for Clean, captions for
+Editorial, an optional speaker overlap for Bold, and the native title treatments
+for Handwritten, Glass and Terminal. Short legacy headings now use each opening
+word once instead of recycling words to fill empty title rows.
+
+Speaker overlap is opt-in for L5/L6 top panels. It reveals one source video
+through the union of the native person mask and the footage rectangle, so the
+crown and the rest of the speaker cannot drift between independently playing
+layers. Very close shots retain the ordinary fitted composition when an overlap
+would cut off the face or expose an empty lower edge. The editor preserves the
+setting through save, reload and undo, while retaining manually added effects.
+
+A moving stock-footage test exposed inaccurate crown estimates from the face
+rectangle alone. Overlap framing now uses a bounded sample of the native masks
+near the detected face to estimate the visible hair edge. Ambiguous samples
+fall back to the face estimate. This is a static framing measurement, not
+face tracking; the extra measurement affects only the opt-in overlap layout.
+
+Draft plates and visual plans now use the same aspect-preserving dimensions.
+Square and 4:5 projects therefore use the same layout in preview and export.
+
 ## Repeat after preview changes
 
 Run the engine and editor suites and both typechecks. Also inspect continuous browser playback: offline exports cannot expose a live CSS mask repaint or iframe handoff defect. Compare style-only and styled-with-effects output, then exercise rapid switching, seeking, end-of-playback and replay with audio enabled.

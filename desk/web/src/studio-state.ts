@@ -32,7 +32,7 @@ export function recoverDraft(raw: string | null, rev: number, timelineRev: strin
     return d?.rev === rev && d.timelineRev === timelineRev && typeof d.settings?.preset === 'string' && Array.isArray(d.settings.effects) ? d.settings : null;
   } catch { return null; }
 }
-import { brandNatNeedsMask, resolveBrandNat, type BrandNat } from '../../src/core/brand-nat.js';
+import { brandNatNeedsMask, resolveBrandNat, type BrandNat, type LookCanvas } from '../../src/core/brand-nat.js';
 export type VisualEffect = { id: string; type: string; at: number; duration: number; strength: number; enabled: boolean; text: string; textSize?: number; textY?: number; items: string[]; values: number[]; asset?: string; anchor?: { source: string; time: number; occurrence: number } };
 export type VisualSettings = { preset: string; motion: string; accent?: string; brandNat?: BrandNat; effects: VisualEffect[] };
 /** Preserve the complete style recipe across saved settings, local drafts and undo. */
@@ -42,7 +42,7 @@ export function visualSettingsOf(c: any): VisualSettings {
     brandNat: resolveBrandNat(preset, c.brandNat),
     effects: (c.effects ?? []).map((e: any, i: number) => ({ id: `effect-${i + 1}`, at: 0, duration: 2.5, strength: 1, enabled: true, text: '', items: [], values: [], ...e })) };
 }
-export function needsPresenterMask(settings: Pick<VisualSettings, 'preset' | 'brandNat' | 'effects'>, kinds: readonly { id: string; matte: boolean }[]): boolean {
-  return brandNatNeedsMask(settings.preset, settings.brandNat)
+export function needsPresenterMask(settings: Pick<VisualSettings, 'preset' | 'brandNat' | 'effects'>, kinds: readonly { id: string; matte: boolean }[], canvas?: LookCanvas): boolean {
+  return brandNatNeedsMask(settings.preset, settings.brandNat, canvas)
     || settings.effects.some(e => e.enabled !== false && kinds.some(k => k.id === e.type && k.matte));
 }

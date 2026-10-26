@@ -98,7 +98,7 @@ describe('styles and effects API', () => {
     });
     it('round-trips a custom recipe into future-cut defaults and the render snapshot', async () => {
         const current = await (await request(url)).json();
-        const brandNat = { caption: 'C3', hook: 'H10', layout: 'L6', finish: 'G4', title: 'My own headline', subtitle: 'A supporting thought', position: 'bottom', emphasis: 'idea, story' };
+        const brandNat = { caption: 'C3', hook: 'H10', layout: 'L6', finish: 'G4', title: 'My own headline', subtitle: 'A supporting thought', position: 'bottom', emphasis: 'idea, story', subjectOverlap: true };
         const settings = { preset: 'nat-editorial', motion: 'subtle', accent: '#abc123', brandNat, effects: [] };
         const r = await request(url, { rev: 0, settings, timelineRev: current.timelineRev, applyToProject: true });
         expect(r.status).toBe(200);
@@ -121,23 +121,49 @@ describe('styles and effects API', () => {
     });
     it('rejects invalid codes, types, overlong text and unknown recipe fields instead of dropping them', async () => {
         for (const brandNat of [{ caption: 'C10' }, { hook: 'H2' }, { layout: 'L1' }, { finish: 'G8' }, { position: 'center' },
-            { title: 42 }, { subtitle: false }, { emphasis: false }, { emphasis: 'x'.repeat(161) }, { title: 'x'.repeat(121) }, { subtitle: 'x'.repeat(101) }, { hook: null }, { capton: 'C1' }, null, []]) {
+            { title: 42 }, { subtitle: false }, { emphasis: false }, { emphasis: 'x'.repeat(161) }, { subjectOverlap: 'true' }, { subjectOverlap: 1 }, { subjectOverlap: null }, { title: 'x'.repeat(121) }, { subtitle: 'x'.repeat(101) }, { hook: null }, { capton: 'C1' }, null, []]) {
             expect((await save({ preset: 'nat-editorial', brandNat, effects: [] })).status).toBe(400);
         }
         expect((await save({ preset: 'nat-missing', effects: [] })).status).toBe(400);
         expect((await save({ ...good, brandNat: { caption: 'C1' } })).status).toBe(400);
     });
-    it('gates only the two mask treatments on an unsupported host, including previously saved exports', async () => {
+    it('gates mask treatments on an unsupported host, including previously saved exports', async () => {
         vi.mocked(personMatteCapabilities).mockReturnValue({ personMatte: false, personMatteReason: 'Automatic person cutouts need macOS 12 or later.' });
-        for (const brandNat of [{ hook: 'H1' }, { finish: 'G6' }]) {
+        for (const brandNat of [{ hook: 'H1' }, { finish: 'G6' }, { layout: 'L5', subjectOverlap: true }, { layout: 'L6', subjectOverlap: true }]) {
             const response = await save({ preset: 'nat-clean', brandNat, effects: [] });
             expect(response.status).toBe(400);
-            expect((await response.json()).message).toMatch(/macOS 12.*another opening title and finish/);
+            expect((await response.json()).message).toMatch(/macOS 12.*switch off speaker overlap/);
         }
         expect((await save({ preset: 'nat-clean', brandNat: { hook: 'none' }, effects: [] })).status).toBe(200);
         await writeFile(join(home, 'p', 'cuts', 'v1', 'visuals.json'), JSON.stringify({ preset: 'nat-clean', brandNat: { finish: 'G6' }, effects: [], rev: 2 }));
         expect((await request('/api/projects/p/versions/v1/visual-render', { preview: false, rev: 2 })).status).toBe(400);
         expect(runEngine).not.toHaveBeenCalled();
+    });
+    it('allows saved overlap on inactive layouts without requiring native cutouts', async () => {
+        vi.mocked(personMatteCapabilities).mockReturnValue({ personMatte: false, personMatteReason: 'Automatic person cutouts need macOS 12 or later.' });
+        const first = await save({ preset: 'nat-clean', brandNat: { layout: 'L4', subjectOverlap: true }, effects: good.effects });
+        expect(first.status).toBe(200);
+        expect((await first.json()).config.effects).toEqual(good.effects);
+        const timelinePath = join(home, 'p', 'cuts', 'v1', 'timeline.json');
+        const timeline = JSON.parse(await readFile(timelinePath, 'utf8'));
+        await writeFile(timelinePath, JSON.stringify({ ...timeline, width: 1920, height: 1080 }));
+        const second = await save({ preset: 'nat-clean', brandNat: { layout: 'L6', subjectOverlap: true }, effects: good.effects }, 1);
+        expect(second.status).toBe(200);
+        expect((await second.json()).config.brandNat.subjectOverlap).toBe(true);
+    });
+    it('sends a full-frame overlap recipe unchanged through the preview endpoint on an unsupported host', async () => {
+        vi.mocked(personMatteCapabilities).mockReturnValue({ personMatte: false, personMatteReason: 'Automatic person cutouts need macOS 12 or later.' });
+        const response = await save({ preset: 'nat-clean', brandNat: { layout: 'L4', subjectOverlap: true }, effects: good.effects });
+        expect(response.status).toBe(200);
+        let finish!: (value: { code: number; out: string }) => void;
+        vi.mocked(runEngine).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+        expect((await request('/api/projects/p/versions/v1/visual-render', { preview: true, at: 4, rev: 1 })).status).toBe(202);
+        const args = vi.mocked(runEngine).mock.calls[0][0];
+        const snapshot = JSON.parse(await readFile(args[args.indexOf('--settings') + 1], 'utf8'));
+        expect(snapshot.brandNat).toMatchObject({ layout: 'L4', subjectOverlap: true });
+        expect(snapshot.effects).toEqual(good.effects);
+        expect(args.slice(-3)).toEqual(['--preview', '--at', '4']);
+        finish({ code: 0, out: '' });
     });
     it('saves behind-person text placement without stripping its controls', async () => {
         const effect = { ...good.effects[0], type: 'text-behind-person', text: 'My story', textSize: .22, textY: .4 };

@@ -12,7 +12,7 @@ vi.mock('../../studio/node_modules/remotion/dist/esm/index.mjs', () => ({
 }));
 vi.mock('../../studio/src/reel/Reel', () => ({ Reel: 'reel' }));
 vi.mock('../../studio/src/engine/style', () => ({
-    PACK: { id: 'volt', palette: { text: '#fff', panel: '#111', line: '#333' }, grounds: { base: { colour: '#111' } }, composition: { ground: 'base' }, subtitles: { case: 'sentence' } },
+    PACK: { id: 'volt', pace: { short: { secondsPerChange: [2, 3] } }, palette: { text: '#fff', panel: '#111', line: '#333' }, grounds: { base: { colour: '#111' } }, composition: { ground: 'base' }, subtitles: { case: 'sentence' } },
     HERO: '#EF6B30', voiceFamily: () => 'sans-serif',
 }));
 vi.mock('../../studio/src/reel/plan', () => ({ checkPlan: (plan: unknown) => plan }));
@@ -33,6 +33,19 @@ const drawEffect = (p: VisualPlan, frame: number) => {
     const element = named(Visuals(p), 'EffectView')[0];
     return element.type(element.props);
 };
+
+describe('short opening titles', () => {
+    it.each([1, 2, 3, 4, 5, 6])('uses each of %s opening words once in the heading', count => {
+        const words = ['Make', 'it', 'yours', 'with', 'your', 'voice'].slice(0, count);
+        const p = { ...props('count-up'), original: false, effects: [], words: words.map((text, i) => ({ text, start: i * .2, end: i * .2 + .18 })) };
+        const reel = elements(Visuals(p)).find(n => n.type === 'reel');
+        const title = reel.props.shots[0];
+        expect(title.scene).toBe('title');
+        const heading = [...title.props.lead.split(' ').filter(Boolean), ...title.props.lines.flat().map((w: {t: string}) => w.t)];
+        expect(heading).toEqual(words);
+        if (count === 3) expect(title.props).toMatchObject({ lead: 'Make it', lines: [[{t: 'yours', hero: true}]] });
+    });
+});
 
 describe('original captions during camera effects', () => {
     it.each(['snap-zoom', 'digital-zoom', 'zoom-through-cut'])('keeps one caption lane outside %s, including combined cutout effects', type => {

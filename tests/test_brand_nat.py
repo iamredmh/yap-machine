@@ -4,7 +4,7 @@ import copy
 import pytest
 
 from yap.project import Project, YapError, write_json
-from yap.visuals import brand_nat_settings, catalog, load_config, validate, visual_plan
+from yap.visuals import brand_nat_needs_matte, brand_nat_settings, catalog, load_config, validate, visual_plan
 
 
 @pytest.fixture
@@ -34,6 +34,7 @@ def test_each_look_resolves_its_own_defaults_without_mutating_catalog(project, t
     ('caption', 'C10'), ('hook', 'H6'), ('layout', 'L9'), ('finish', 'G8'),
     ('position', 'middle'), ('title', 12), ('title', 'a' * 121),
     ('subtitle', False), ('subtitle', 'a' * 101), ('emphasis', False), ('emphasis', 'a' * 161), ('music', 'S3'),
+    ('subjectOverlap', 'true'), ('subjectOverlap', 1), ('subjectOverlap', None),
 ])
 def test_unimplemented_or_invalid_options_are_not_silently_accepted(project, timeline, field, value):
     with pytest.raises(YapError):
@@ -54,15 +55,57 @@ def test_non_nat_look_does_not_accept_ignored_recipe(project, timeline):
 def test_customization_survives_project_defaults_and_cut_override(project, timeline):
     write_json(project.root / 'style.json', {'visual_defaults': {
         'preset': 'nat-clean', 'motion': 'subtle', 'brandNat': {
-            'caption': 'C7', 'title': '  A real title  ', 'subtitle': 'My own words', 'position': 'top', 'emphasis': '  story, idea  '}}})
+            'caption': 'C7', 'title': '  A real title  ', 'subtitle': 'My own words', 'position': 'top', 'emphasis': '  story, idea  ', 'subjectOverlap': True}}})
     first = load_config(project, 'v1', timeline)
     assert first['brandNat']['caption'] == 'C7'
     assert first['brandNat']['title'] == 'A real title'
     assert first['brandNat']['emphasis'] == 'story, idea'
+    assert first['brandNat']['subjectOverlap'] is True
     write_json(project.cut_dir('v1') / 'visuals.json', {**first, 'brandNat': {
         **first['brandNat'], 'caption': 'C3', 'hook': 'none'}})
     assert load_config(project, 'v1', timeline)['brandNat']['caption'] == 'C3'
     assert load_config(project, 'v2', timeline)['brandNat']['caption'] == 'C7'
+    assert load_config(project, 'v2', timeline)['brandNat']['subjectOverlap'] is True
+
+
+@pytest.mark.parametrize('layout,width,height,expected', [
+    ('L4', 432, 768, False), ('L5', 432, 768, True), ('L6', 1080, 1080, True),
+    ('L5', 1250, 1000, False), ('L6', 1920, 1080, False),
+])
+def test_overlap_needs_native_masks_only_for_top_panels(layout, width, height, expected):
+    recipe = brand_nat_settings({'preset': 'nat-clean', 'brandNat': {'layout': layout, 'subjectOverlap': True}})
+    assert brand_nat_needs_matte(recipe, offset=4, width=width, height=height) is expected
+    recipe['subjectOverlap'] = False
+    assert brand_nat_needs_matte(recipe, width=width, height=height) is False
+    assert brand_nat_settings({'preset': 'nat-bold'})['subjectOverlap'] is False
+
+
+@pytest.mark.parametrize('draft', [False, True])
+@pytest.mark.parametrize('layout,width,height,needs_mask', [
+    ('L4', 432, 768, False), ('L5', 432, 768, True), ('L6', 432, 768, True),
+    ('L6', 1080, 1080, True), ('L5', 1920, 1080, False),
+])
+def test_preview_and_export_prepare_overlap_only_when_visible(project, timeline, monkeypatch, draft, layout, width, height, needs_mask):
+    import yap.visuals as visuals
+    monkeypatch.setattr(visuals, 'face_measurements', lambda *a: {'chin': 400, 'eyes': 220})
+    monkeypatch.setattr('yap.overlays.output_words', lambda *a: [])
+    timeline = {**timeline, 'width': width, 'height': height}
+    write_json(project.cut_dir('v1') / 'timeline.json', timeline)
+    config = validate(project, timeline, {'preset': 'nat-clean', 'brandNat': {'layout': layout, 'subjectOverlap': True}})
+    calls = []
+    mask = {'dir': 'masks', 'fps': 24, 'count': 192}
+    def prepare(*args):
+        calls.append(args)
+        if not needs_mask:
+            pytest.fail('An inactive overlap must work without native person cutouts')
+        return mask
+    monkeypatch.setattr(visuals, 'prepare_matte', prepare)
+    plan = visual_plan(project, 'v1', project.root / 'plate.mp4', project.root / 'work',
+                       timeline, config, {'captions': True}, draft, offset=4)
+    assert plan['brandNat']['subjectOverlap'] is True
+    assert plan['width'] / plan['height'] == pytest.approx(width / height, abs=.002)
+    assert plan['mask'] == (mask if needs_mask else None)
+    assert len(calls) == int(needs_mask)
 
 
 def test_every_exposed_recipe_option_is_accepted(project, timeline):

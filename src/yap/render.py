@@ -24,12 +24,19 @@ LOUD_I, LOUD_TP, LOUD_LRA = -14.0, -1.0, 11.0
 FADE = 0.015
 
 
+def render_dimensions(timeline: dict, draft: bool) -> tuple[int, int]:
+    """Drafts reduce resolution without changing the composition's aspect ratio."""
+    width, height = timeline["width"], timeline["height"]
+    if not draft:
+        return width, height
+    scale = min(1, 960 / max(width, height))
+    return max(2, round(width * scale / 2) * 2), max(2, round(height * scale / 2) * 2)
+
+
 def _segment_cmd(project: Project, seg: dict, tl: dict, out: Path, draft: bool) -> list[str]:
     src = project.source(seg["source"])
     start, dur = seg["start"], seg["end"] - seg["start"]
-    w, h = (960, 540) if draft else (tl["width"], tl["height"])
-    if draft and tl["height"] > tl["width"]:
-        w, h = 540, 960
+    w, h = render_dimensions(tl, draft)
     z = float(seg.get("zoom", 1.0))
     if seg.get("crop"):
         # reframed (e.g. 9:16 around the face); the crop already includes any punch-in

@@ -8,7 +8,7 @@ import { StudioIcon } from './StudioIcon.js';
 import { captionEditMessage, captionEditState, type CaptionEditState } from './caption-edit-state.js';
 import './visual-studio.css';
 import { changeHistory, clampTime, effectIssue, historyOf, needsPresenterMask, recoverDraft, travelHistory, visualSettingsOf as settingsOf, type History, type VisualEffect as Effect, type VisualSettings as Settings } from './studio-state.js';
-import { brandNatNeedsMask, resolveBrandNat, type BrandNat } from '../../src/core/brand-nat.js';
+import { brandNatHasTopPanel, brandNatNeedsMask, resolveBrandNat, type BrandNat } from '../../src/core/brand-nat.js';
 type Kind = { id: string; name: string; group: string; description: string; asset: boolean; matte: boolean; pickerHidden?: boolean; variants?: { type: string; name: string }[] };
 type Style = { id: string; name: string; summary: string; accent: string; background: string; font: string; signature: string; family?: string; brandNat?: BrandNat };
 type NatControl = 'caption' | 'hook' | 'layout' | 'finish' | 'position';
@@ -58,11 +58,12 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
   const matteUnavailable = catalog?.capabilities?.personMatte === false;
   const matteReason = catalog?.capabilities?.personMatteReason ?? 'Automatic cutouts need macOS 12 or later and Apple’s Command Line Tools. Disable cutout effects to export on this computer.';
   const nat = resolveBrandNat(settings.preset, settings.brandNat);
-  const natMask = brandNatNeedsMask(settings.preset, nat);
-  const natIssue = natMask && matteUnavailable ? matteReason + ' Choose another opening title and finish below.' : null;
+  const topPanel = brandNatHasTopPanel(nat, data?.timeline);
+  const natMask = brandNatNeedsMask(settings.preset, nat, data?.timeline);
+  const natIssue = natMask && matteUnavailable ? matteReason + ' Choose an opening title and finish without cutouts, and switch off speaker overlap below.' : null;
   const issues = settings.effects.map(e => ({ id: e.id, message: effectIssue(e, duration, boundaries)
     || (e.enabled && matteUnavailable && catalog?.effects.some(k => k.id === e.type && k.matte) ? matteReason : null) })).filter(i => i.message);
-  const matteNeeded = !matteUnavailable && needsPresenterMask(settings, catalog?.effects ?? []);
+  const matteNeeded = !matteUnavailable && needsPresenterMask(settings, catalog?.effects ?? [], data?.timeline);
   const natPreviewBlocked = !compare && natMask && !source?.mask;
   const assetKey = settings.effects.map(e => e.asset ?? '').join('|');
   const video = useRef<HTMLVideoElement>(null), side = useRef<HTMLDivElement>(null);
@@ -324,10 +325,14 @@ export function VisualStudio({ project, captions, captionEdits = { queued: 0, wi
                 <button class="btn ghost small" onClick={() => jump(1.2)}>Preview the opening<StudioIcon name="play"/></button>
               </div>}
               {natSelect('layout', 'Layout')}{natSelect('finish', 'Finish')}{natSelect('position', 'Text placement')}
-              {matteUnavailable && <p class="fine vs-nat-matte" role="status">{natIssue || `${matteReason} The two Mac cutout choices are unavailable here.`}</p>}
+              {matteUnavailable && <p class="fine vs-nat-matte" role="status">{natIssue || `${matteReason} Choices that need a presenter cutout are unavailable here.`}</p>}
               {natMask && !matteUnavailable && <p class="fine vs-nat-matte" role="status">{sourceError || (preparing || !source?.mask ? 'Preparing a real presenter cutout on this Mac…' : 'Presenter cutout ready for preview and export.')}</p>}
             </section>}
-            <details class="vs-customise"><summary><span><StudioIcon name="sliders"/>Fine-tune your style</span><StudioIcon name="chevron"/></summary><div class="vs-customise-body"><div class="vs-toolbar"><label>Motion<select aria-label="Motion strength" value={settings.motion} onChange={e => set({ motion: e.currentTarget.value })}><option value="subtle">Subtle</option><option value="balanced">Balanced</option><option value="bold">Bold</option></select></label><label>Accent<input aria-label="Style accent" type="color" value={settings.accent ?? style?.accent ?? '#F0412B'} onInput={e => set({ accent: e.currentTarget.value }, 'accent')}/></label></div><label class="vs-default"><input type="checkbox" checked={apply} onChange={e => setApply(e.currentTarget.checked)}/> Use this style for new cuts</label></div></details>
+            <details class="vs-customise"><summary><span><StudioIcon name="sliders"/>Fine-tune your style</span><StudioIcon name="chevron"/></summary><div class="vs-customise-body">
+              <div class="vs-toolbar"><label>Motion<select aria-label="Motion strength" value={settings.motion} onChange={e => set({ motion: e.currentTarget.value })}><option value="subtle">Subtle</option><option value="balanced">Balanced</option><option value="bold">Bold</option></select></label><label>Accent<input aria-label="Style accent" type="color" value={settings.accent ?? style?.accent ?? '#F0412B'} onInput={e => set({ accent: e.currentTarget.value }, 'accent')}/></label></div>
+              {nat && <div class="field"><label class="vs-default"><input type="checkbox" checked={nat.subjectOverlap === true} aria-describedby="vs-subject-overlap-help" disabled={!nat.subjectOverlap && (!topPanel || matteUnavailable)} onChange={e => patchNat({ subjectOverlap: e.currentTarget.checked })}/> Speaker overlaps title panel</label><span class="fine" id="vs-subject-overlap-help">{!topPanel ? 'Choose Title space or More text space on a portrait or square video. Overlap is inactive in full-frame and wide side-panel layouts.' : matteUnavailable ? matteReason : 'Let the speaker overlap the title panel when the framing allows it. Uses a real presenter cutout on this Mac.'}</span></div>}
+              <label class="vs-default"><input type="checkbox" checked={apply} onChange={e => setApply(e.currentTarget.checked)}/> Use this style for new cuts</label>
+            </div></details>
           </>}
           {panel === 'effects' && <>
             {effect && kind ? <div class="vs-effect-editor" key={effect.id}>

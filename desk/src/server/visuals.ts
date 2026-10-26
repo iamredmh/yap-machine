@@ -22,6 +22,7 @@ export const EffectSchema = z.object({
 export const BrandNatSchema = z.object({
     caption: z.enum(natCaptions), hook: z.enum(natHooks), layout: z.enum(natLayouts), finish: z.enum(natFinishes),
     title: z.string().max(120), subtitle: z.string().max(100), emphasis: z.string().max(160), position: z.enum(natPositions),
+    subjectOverlap: z.boolean(),
 }).partial().strict();
 export const VisualSchema = z.object({
     preset: z.enum(['original', 'volt', 'ledger', 'sketch', 'terminal', 'glass', 'pop', ...natPresets]).default('original'),
@@ -75,10 +76,10 @@ export async function validateVisual(home: string, id: string, version: string, 
     const brandNat = resolveBrandNat(settings.preset, settings.brandNat, [...cat.styles, ...(cat.legacyStyles ?? [])].find((s: any) => s.id === settings.preset)?.brandNat);
     if (brandNat) {
         settings = { ...settings, brandNat };
-        if (brandNatNeedsMask(settings.preset, brandNat)) {
+        if (brandNatNeedsMask(settings.preset, brandNat, tl)) {
             const capability = personMatteCapabilities();
             if (!capability.personMatte)
-                throw new InvalidError(`${capability.personMatteReason} Choose another opening title and finish to use this look here.`);
+                throw new InvalidError(`${capability.personMatteReason} Choose an opening title and finish without cutouts, and switch off speaker overlap to use this look here.`);
         }
     }
     const ids = new Set<string>();

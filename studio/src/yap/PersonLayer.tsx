@@ -2,13 +2,14 @@ import React, { useCallback, useId, useLayoutEffect, useRef, useState } from 're
 import { OffthreadVideo, useBufferState, useCurrentFrame, useDelayRender, useVideoConfig } from 'remotion';
 import { MaskReadiness, personMaskFrame, personMaskGeometry, personMaskUrl, personMaskWindow, type PersonMaskSource } from './person-mask';
 
+type MaskRect={x:number;y:number;width:number;height:number};
 type PersonPlan = { plate:string; fps:number; mask?:PersonMaskSource|null };
 const fill:React.CSSProperties={position:'absolute',inset:0};
 
 /** A mask image stays mounted while it is in the lookahead window. Readiness
  * comes from the SVG image that will actually paint, not a separate HTML Img. */
-function MaskDefinition({id,url,inverse,filterId,geometry,onLoaded,onError}:{
-  id:string;url:string;inverse:boolean;filterId:string;geometry:ReturnType<typeof personMaskGeometry>;
+function MaskDefinition({id,url,inverse,filterId,geometry,revealRect,onLoaded,onError}:{
+  id:string;url:string;inverse:boolean;filterId:string;geometry:ReturnType<typeof personMaskGeometry>;revealRect?:MaskRect;
   onLoaded:(url:string,image:SVGImageElement)=>void;onError:(url:string)=>void;
 }){
   const loaded=useCallback((event:React.SyntheticEvent<SVGImageElement>)=>onLoaded(url,event.currentTarget),[url,onLoaded]);
@@ -16,13 +17,14 @@ function MaskDefinition({id,url,inverse,filterId,geometry,onLoaded,onError}:{
   return <mask id={id} maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox" x={0} y={0} width={1} height={1} style={{maskType:'luminance'}}>
     {inverse&&<rect x={0} y={0} width={1} height={1} fill="white"/>}
     <image href={url} {...geometry} preserveAspectRatio="none" filter={inverse?`url(#${filterId})`:undefined} onLoad={loaded} onError={failed}/>
+    {!inverse&&revealRect&&<rect {...revealRect} fill="white"/>}
   </mask>;
 }
 
 /** Loaded local SVG masks avoid replacing an external CSS image on every frame.
  * The bounded definitions retain their SVG image resources across playback. */
-export function PersonMask({p,children,inverse=false,maskSize='100% 100%',maskPosition='0 0',maskCanvas}:{
-  p:PersonPlan;children:React.ReactNode;inverse?:boolean;maskSize?:string;maskPosition?:string;maskCanvas?:{width:number;height:number};
+export function PersonMask({p,children,inverse=false,maskSize='100% 100%',maskPosition='0 0',maskCanvas,revealRect}:{
+  p:PersonPlan;children:React.ReactNode;inverse?:boolean;maskSize?:string;maskPosition?:string;maskCanvas?:{width:number;height:number};revealRect?:MaskRect;
 }){
   const frame=useCurrentFrame(),video=useVideoConfig();
   const prefix=`person-${useId().replace(/[^a-zA-Z0-9_-]/g,'')}`;
@@ -49,6 +51,8 @@ export function PersonMask({p,children,inverse=false,maskSize='100% 100%',maskPo
     return ()=>{playback.unblock();continueRender(render);};
   },[canAdvance,url,index,delayPlayback,delayRender,continueRender]);
   const geometry=personMaskGeometry(maskSize,maskPosition,maskCanvas?.width??video.width,maskCanvas?.height??video.height);
+  const canvas=maskCanvas??video;
+  const reveal=revealRect?{x:revealRect.x/canvas.width,y:revealRect.y/canvas.height,width:revealRect.width/canvas.width,height:revealRect.height/canvas.height}:undefined;
   const maskId=(source:string)=>`${prefix}-${source.slice(source.lastIndexOf('/')+1).replace(/[^a-zA-Z0-9_-]/g,'-')}`;
   const reference=`url(#${maskId(url)})`,filterId=`${prefix}-inverse`;
   return <>
@@ -56,7 +60,7 @@ export function PersonMask({p,children,inverse=false,maskSize='100% 100%',maskPo
       <filter id={filterId} x={0} y={0} width={1} height={1} colorInterpolationFilters="sRGB">
         <feComponentTransfer><feFuncR type="table" tableValues="1 0"/><feFuncG type="table" tableValues="1 0"/><feFuncB type="table" tableValues="1 0"/></feComponentTransfer>
       </filter>
-      {urls.map(source=><MaskDefinition key={source} id={maskId(source)} url={source} inverse={inverse} filterId={filterId} geometry={geometry} onLoaded={loaded} onError={failed}/>)}
+      {urls.map(source=><MaskDefinition key={source} id={maskId(source)} url={source} inverse={inverse} filterId={filterId} geometry={geometry} revealRect={reveal} onLoaded={loaded} onError={failed}/>)}
     </defs></svg>
     <div data-person-mask={index} data-mask-ready={ready?'true':'false'} style={{...fill,maskImage:reference,WebkitMaskImage:reference,maskMode:'luminance',visibility:ready?'visible':'hidden'}}>{children}</div>
   </>;

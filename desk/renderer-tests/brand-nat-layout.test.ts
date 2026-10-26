@@ -168,6 +168,85 @@ describe('Brand Nat timing and genuine text', () => {
     });
 });
 
+describe('optional speaker overlap at a title band', () => {
+    it('uses the measured hair crown only for active overlap, preserving every other composition', () => {
+        const measured = { ...source, crown: 45, maskCrown: 108 };
+        const original = { ...measured, maskCrown: undefined };
+        for (const layout of ['L4', 'L5', 'L6'] as const) {
+            expect(footageGeometry(432, 768, measured, { ...config, layout })).toEqual(footageGeometry(432, 768, original, { ...config, layout }));
+            expect(footageGeometry(768, 432, measured, { ...config, layout, subjectOverlap: true })).toEqual(footageGeometry(768, 432, original, { ...config, layout, subjectOverlap: true }));
+        }
+        const c = { ...config, layout: 'L5' as const, subjectOverlap: true };
+        const g = footageGeometry(432, 768, measured, c);
+        expect(g.rect.y + g.image.y + measured.maskCrown * g.scale).toBeCloseTo(g.rect.y - g.overlap, 8);
+        expect(g.face.y).toBeCloseTo(g.rect.y - g.overlap, 8);
+        expect(g.image.y).not.toBe(footageGeometry(432, 768, original, c).image.y);
+        for (const bad of [NaN, -2, 1000]) expect(footageGeometry(432, 768, { ...measured, maskCrown: bad }, c)).toEqual(footageGeometry(432, 768, original, c));
+    });
+    it('preserves saved geometry unless explicitly enabled, and ignores full-frame or sidebar layouts', () => {
+        expect(resolveBrandNat({ pack: 'nat-bold' })?.subjectOverlap).toBe(false);
+        for (const layout of ['L4', 'L5', 'L6'] as const) {
+            const c = { ...config, layout };
+            expect(footageGeometry(432, 768, source, c)).toEqual(footageGeometry(432, 768, source, { ...c, subjectOverlap: false }));
+            expect(footageGeometry(768, 432, source, { ...c, subjectOverlap: true })).toEqual(footageGeometry(768, 432, source, c));
+        }
+        expect(footageGeometry(432, 768, source, { ...config, subjectOverlap: true })).toEqual(footageGeometry(432, 768, source, config));
+    });
+    it.each([[432, 768], [540, 540]])('keeps the source and silhouette aligned with clear captions at %s×%s', (W, H) => {
+        for (const layout of ['L5', 'L6'] as const) {
+            const c = { ...config, layout, subjectOverlap: true };
+            const g = footageGeometry(W, H, source, c);
+            expect(g.image.width / g.image.height).toBeCloseTo(source.width / source.height, 8);
+            if (g.overlap) expect(g.face.y).toBeCloseTo(g.rect.y - g.overlap, 8);
+            else expect(g).toEqual(footageGeometry(W, H, source, { ...c, subjectOverlap: false }));
+            expect(g.face.y).toBeGreaterThan(0);
+            expect(g.face.bottom).toBeLessThan(H * .84);
+            expect(g.image.y + g.image.height).toBeGreaterThanOrEqual(g.rect.height - .001);
+            const region = captionRegion({ W, H, face: g.face, height: captionBlockHeight('C5', Math.min(W, H)), position: 'auto', hookReserved: true, rect: g.rect });
+            expect(region.y + region.height <= g.face.y || region.y >= g.face.bottom).toBe(true);
+        }
+    });
+    it.each(['G2', 'G6'] as const)('uses one video clock with identical full-canvas mask geometry in %s', finish => {
+        clock.frame = 24;
+        const c = { ...config, layout: 'L5' as const, subjectOverlap: true, finish };
+        const p = plan(), g = footageGeometry(p.width, p.height, p.shoot, c);
+        const picture = BrandNatPicture({ p, config: c });
+        expect(named(picture, 'FittedVideo')).toHaveLength(0);
+        const overlay = named(picture, 'OverlappingVideo')[0];
+        const output = overlay.type(overlay.props);
+        const videos = elements(output).filter(n => n.type === 'video');
+        expect(videos).toHaveLength(1);
+        const video = videos[0].props.style;
+        const mask = named(output, 'PersonMask').find(n => !n.props.inverse);
+        expect(mask.props.revealRect).toEqual(g.rect);
+        expect(mask.props.maskCanvas).toEqual({ width: p.width, height: p.height });
+        expect(mask.props.maskPosition).toBe(`${video.left}px ${video.top}px`);
+        expect(mask.props.maskSize).toBe(`${video.width}px ${video.height}px`);
+        expect(named(output, 'FootageOverlay')[0].props.geometry).toEqual({ width: g.rect.width, height: g.rect.height, image: g.image });
+        expect(named(output, 'PersonMask').filter(n => n.props.inverse)).toHaveLength(finish === 'G6' ? 1 : 0);
+    });
+    it('fills below a close speaker and keeps the normal safe layout when an extreme close-up cannot overlap', () => {
+        const c = { ...config, layout: 'L5' as const, subjectOverlap: true };
+        const close = { width: 540, height: 960, faceX: 270, crown: 275, eyes: 390, chin: 728.6 };
+        const g = footageGeometry(540, 960, close, c);
+        expect(g.overlap).toBeGreaterThan(0);
+        expect(g.image.y + g.image.height).toBeGreaterThanOrEqual(g.rect.height - .001);
+        expect(g.face.bottom).toBeLessThan(960 * .84);
+        const extreme = { ...source, crown: 0, eyes: 250, chin: 740 };
+        expect(footageGeometry(432, 768, extreme, c)).toEqual(footageGeometry(432, 768, extreme, { ...c, subjectOverlap: false }));
+    });
+    it.each(['H10', 'H1'] as const)('keeps the %s band title above the overlapping crown', hookKind => {
+        clock.frame = 0;
+        const c = { ...config, hook: hookKind, layout: 'L5' as const, subjectOverlap: true, title: 'Make it yours', subtitle: 'Your next idea' };
+        const p = plan(), hook = named(BrandNatPicture({ p, config: c }), 'Hook')[0];
+        const output = hook.type(hook.props);
+        const lines = elements(output).filter(n => n.type === 'p');
+        const contentHeight = lines.reduce((h, n) => h + n.props.style.fontSize * n.props.style.lineHeight + (n.props.style.marginTop || 0), 0);
+        expect(output.props.style.top + contentHeight).toBeLessThan(footageGeometry(p.width, p.height, p.shoot, c).face.y);
+        if (hookKind === 'H1') expect(lines.at(-1).props.style.whiteSpace).toBe('nowrap');
+    });
+});
+
 describe('Brand Nat caption ownership', () => {
     it('C3 disables captions even when a translation exists', () => {
         clock.frame = 12;

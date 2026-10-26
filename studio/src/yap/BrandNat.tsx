@@ -8,7 +8,7 @@ import type { VisualPlan } from './Visuals';
 import { bounded, captionBlockHeight, captionGroups, captionRegion, currentCaption, footageGeometry, hookVisibility, openingText, type BrandNatConfig, type NatWord } from './brand-nat-layout';
 export type { BrandNatConfig } from './brand-nat-layout';
 
-const defaults:BrandNatConfig={caption:'C5',hook:'H10',layout:'L4',finish:'G2',title:'',subtitle:'',position:'auto'};
+const defaults:BrandNatConfig={caption:'C5',hook:'H10',layout:'L4',finish:'G2',title:'',subtitle:'',position:'auto',subjectOverlap:false};
 export function resolveBrandNat(p:Pick<VisualPlan,'pack'|'brandNat'>):BrandNatConfig|null {
   const row=([...catalog.styles,...catalog.legacyStyles] as Array<{id:string;brandNat?:Partial<BrandNatConfig>}>).find(s=>s.id===p.pack);
   return row?.brandNat || p.brandNat ? {...defaults,...row?.brandNat,...p.brandNat}:null;
@@ -29,6 +29,21 @@ function FittedVideo({p,config,person=false}:{p:VisualPlan;config:BrandNatConfig
     {!person&&<FootageOverlay geometry={{width:g.rect.width,height:g.rect.height,image:g.image}}/>}
   </div>;
 }
+/** The normal footage rectangle and its overlapping crown share one video.
+ * The mask reveals the room below the band and only the person above its edge. */
+function OverlappingVideo({p,config}:{p:VisualPlan;config:BrandNatConfig}){
+  const g=footageGeometry(p.width,p.height,p.shoot,config),image=g.image;
+  const dark=config.finish==='G6';
+  return <>
+    <PersonMask p={p} maskCanvas={{width:p.width,height:p.height}} maskSize={`${image.width}px ${image.height}px`} maskPosition={`${g.rect.x+image.x}px ${g.rect.y+image.y}px`} revealRect={g.rect}>
+      <OffthreadVideo src={p.plate} muted pauseWhenBuffering acceptableTimeShiftInSeconds={1/p.fps} style={{position:'absolute',left:g.rect.x+image.x,top:g.rect.y+image.y,width:image.width,height:image.height,filter:dark?'brightness(1.06) saturate(.94)':finishFilter(config.finish)}}/>
+    </PersonMask>
+    <div style={{position:'absolute',left:g.rect.x,top:g.rect.y,width:g.rect.width,height:g.rect.height,overflow:'hidden'}}>
+      {dark&&<PersonMask p={p} inverse maskCanvas={{width:g.rect.width,height:g.rect.height}} maskSize={`${image.width}px ${image.height}px`} maskPosition={`${image.x}px ${image.y}px`}><AbsoluteFill style={{backdropFilter:'brightness(.434) saturate(.585)',background:'linear-gradient(110deg,#063D4633,#001C2433),radial-gradient(ellipse at 50% 40%,transparent 40%,#0007)'}}/></PersonMask>}
+      <FootageOverlay geometry={{width:g.rect.width,height:g.rect.height,image}}/>
+    </div>
+  </>;
+}
 function Hook({p,config,behind=false}:{p:VisualPlan;config:BrandNatConfig;behind?:boolean}){
   const t=useCurrentFrame()/p.fps,opacity=hookVisibility(t,p.duration,p.timelineOffset??0);
   if(config.hook==='none'||!opacity)return null;
@@ -37,7 +52,7 @@ function Hook({p,config,behind=false}:{p:VisualPlan;config:BrandNatConfig;behind
   const W=p.width,H=p.height,u=Math.min(W,H),g=footageGeometry(W,H,p.shoot,config);
   const onCanvas=config.layout!=='L4'&&!behind;
   const top=behind?g.face.y+u*.055:onCanvas?H*.065:H*.035;
-  const maxHeight=behind?u*.25:onCanvas?(g.sidebar?H*.25:Math.max(u*.035,Math.min(H*.19,g.rect.y-top-u*.025))):Math.max(u*.035,Math.min(H*.19,g.face.y-top-u*.025));
+  const maxHeight=behind?u*.25:onCanvas?(g.sidebar?H*.25:Math.max(u*.035,Math.min(H*.19,(g.overlap?g.face.y:g.rect.y)-top-u*.025))):Math.max(u*.035,Math.min(H*.19,g.face.y-top-u*.025));
   // Both title lines, their leading and spacing share one explicit safe budget.
   const spacing=u*({none:0,H1:0,H3:.018,H4:.016,H5:.032,H8:.037,H10:.012}[config.hook]);
   const lineFactor=({none:1,H1:1.98,H3:1.72,H4:1.86,H5:1.46,H8:1.86,H10:2.06}[config.hook]);
@@ -50,7 +65,7 @@ function Hook({p,config,behind=false}:{p:VisualPlan;config:BrandNatConfig;behind
   const wrapper:React.CSSProperties={position:'absolute',left:g.sidebar?(behind?g.rect.x+g.rect.width*.07:W*.065):W*.07,width:hookWidth,top,opacity,transform:`translateY(${-(1-opacity)*u*.08}px)`,textAlign:'center',color:colour,textShadow:shadow};
   const bold:React.CSSProperties={...baseText,fontFamily:font('display'),fontWeight:800,fontSize:titleSize,letterSpacing:'-.025em'};
   const small:React.CSSProperties={...baseText,fontFamily:font('body'),fontSize:secondary*.65,fontWeight:500,whiteSpace:'nowrap'};
-  if(config.hook==='H1')return <div data-nat-hook="H1" style={wrapper}>{subtitle&&<p style={{...small,fontFamily:font('accent'),fontStyle:'italic',fontSize:secondary*.7}}>{subtitle}</p>}<p style={{...bold,fontSize:titleSize*1.2,color:p.accent??butter,textTransform:'uppercase',WebkitTextStroke:`${u*.003}px ${ink}`,paintOrder:'stroke fill'}}>{title}</p></div>;
+  if(config.hook==='H1')return <div data-nat-hook="H1" style={wrapper}>{subtitle&&<p style={{...small,fontFamily:font('accent'),fontStyle:'italic',fontSize:secondary*.7}}>{subtitle}</p>}<p style={{...bold,fontSize:onCanvas?Math.min(titleSize,hookWidth/(Math.max(1,title.length)*.75)):titleSize*1.2,whiteSpace:onCanvas?'nowrap':undefined,color:p.accent??butter,textTransform:'uppercase',WebkitTextStroke:`${u*.003}px ${ink}`,paintOrder:'stroke fill'}}>{title}</p></div>;
   if(config.hook==='H10')return <div data-nat-hook="H10" style={wrapper}><p style={{...bold,textTransform:'uppercase'}}>{title}</p>{subtitle&&<p style={{...baseText,marginTop:u*.012,fontFamily:font('code'),fontWeight:400,fontSize:secondary,letterSpacing:'.035em',textTransform:'uppercase',whiteSpace:'nowrap'}}>{subtitle}</p>}</div>;
   if(config.hook==='H4')return <div data-nat-hook="H4" style={wrapper}>{subtitle&&<p style={{...small,fontFamily:font('accent'),fontStyle:'italic',fontSize:secondary*.8,marginBottom:u*.016}}>{subtitle}</p>}<p style={{...bold,textTransform:'lowercase',color:light?ink:cream}}>{title}</p></div>;
   if(config.hook==='H5')return <div data-nat-hook="H5" style={wrapper}><div style={{display:'inline-block',maxWidth:'100%',padding:`${u*.012}px ${u*.035}px`,background:'#fff',borderRadius:u*.025,boxShadow:`0 ${u*.012}px ${u*.04}px #0002`}}><p style={{...bold,fontSize:titleSize*.85,color:ink}}>{title}</p>{subtitle&&<p style={{...small,color:'#5C5C59',marginTop:u*.008,fontSize:secondary*.55}}>{subtitle}</p>}</div></div>;
@@ -59,16 +74,18 @@ function Hook({p,config,behind=false}:{p:VisualPlan;config:BrandNatConfig;behind
 }
 export function BrandNatPicture({p,config}:{p:VisualPlan;config:BrandNatConfig}){
   const time=useCurrentFrame()/p.fps;
-  const behind=config.hook==='H1'&&hookVisibility(time,p.duration,p.timelineOffset??0)>0;
-  const needsPerson=config.finish==='G6';
   const g=footageGeometry(p.width,p.height,p.shoot,config);
+  // The crown supplies the depth at a title band. Keep its outlined title in
+  // the clear band rather than hiding the heading behind the same close face.
+  const behind=config.hook==='H1'&&!g.overlap&&hookVisibility(time,p.duration,p.timelineOffset??0)>0;
+  const needsPerson=config.finish==='G6';
   return <AbsoluteFill style={{background:finishGround(config.finish)}}>
     {config.layout==='L6'&&<AbsoluteFill style={{backgroundImage:'repeating-linear-gradient(0deg,transparent 0 31px,#29251F0A 31px 32px)',opacity:.7}}/>}
-    <FittedVideo p={p} config={config}/>
-    {(config.finish==='G1'||config.finish==='G5'||config.finish==='G6')&&<AbsoluteFill style={{background:config.finish==='G6'?'linear-gradient(110deg,#063D4633,#001C2433),radial-gradient(ellipse at 50% 40%,transparent 40%,#0007)':'radial-gradient(ellipse at 50% 40%,transparent 45%,#27160844)'}}/>}
+    {g.overlap?<OverlappingVideo p={p} config={config}/>:<FittedVideo p={p} config={config}/>}
+    {(config.finish==='G1'||config.finish==='G5'||(config.finish==='G6'&&!g.overlap))&&<AbsoluteFill style={{background:config.finish==='G6'?'linear-gradient(110deg,#063D4633,#001C2433),radial-gradient(ellipse at 50% 40%,transparent 40%,#0007)':'radial-gradient(ellipse at 50% 40%,transparent 45%,#27160844)'}}/>}
     {behind&&<PersonMask p={p} inverse maskSize={`${g.image.width}px ${g.image.height}px`} maskPosition={`${g.rect.x+g.image.x}px ${g.rect.y+g.image.y}px`}><Hook p={p} config={config} behind/></PersonMask>}
-    {needsPerson&&<FittedVideo p={p} config={config} person/>}
-    {config.hook!=='H1'&&<Hook p={p} config={config}/>}
+    {needsPerson&&!g.overlap&&<FittedVideo p={p} config={config} person/>}
+    {(config.hook!=='H1'||g.overlap>0)&&<Hook p={p} config={config}/>}
   </AbsoluteFill>;
 }
 const revealed=(w:NatWord,t:number)=>t>=w.start;

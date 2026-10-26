@@ -49,6 +49,8 @@ def brand_nat_settings(config: dict, cat: dict | None = None) -> dict | None:
     if set(raw) - set(defaults):
         raise YapError("Unknown look setting: " + ", ".join(sorted(set(raw) - set(defaults))))
     result = {**defaults, **raw}
+    if not isinstance(result.get("subjectOverlap"), bool):
+        raise YapError("Speaker overlap must be true or false")
     for field, options in cat["brandNat"]["options"].items():
         if not isinstance(result.get(field), str) or result[field] not in {o["code"] for o in options}:
             raise YapError(f"Choose a supported {field}")
@@ -59,8 +61,12 @@ def brand_nat_settings(config: dict, cat: dict | None = None) -> dict | None:
     return result
 
 
-def brand_nat_needs_matte(recipe: dict | None, offset: float = 0) -> bool:
-    return bool(recipe and (recipe["finish"] == "G6" or (recipe["hook"] == "H1" and offset < 3)))
+def brand_nat_needs_matte(recipe: dict | None, offset: float = 0,
+                          width: int | None = None, height: int | None = None) -> bool:
+    top_panel = bool(recipe and recipe.get("layout") in {"L5", "L6"}
+                     and (width is None or height is None or width / height < 1.25))
+    return bool(recipe and (recipe["finish"] == "G6" or (recipe["hook"] == "H1" and offset < 3)
+                            or (recipe.get("subjectOverlap") is True and top_panel)))
 
 
 def finite(value, label: str, lo: float, hi: float) -> float:
@@ -209,7 +215,65 @@ def trim_timeline(timeline: dict, start: float, duration: float = 6) -> dict:
     return tl
 
 
-def face_measurements(plate: Path, width: int, height: int) -> dict:
+def _mask_crown(mask: dict, shoot: dict, width: int, height: int) -> float | None:
+    """Estimate hair near the detected face, using at most five masks at 0.4s.
+
+    Scan upward from the face through its central columns, not from the top of
+    the whole person mask: disconnected hands, other people and small islands
+    must not become the crown. Broad occlusion or unstable support keeps the
+    existing face estimate. This is one static framing measurement, not tracking.
+    """
+    import cv2
+    import numpy as np
+    if not all(k in shoot for k in ("faceX", "eyes", "chin")) or not mask.get("dir"):
+        return None
+    fps, count = mask.get("fps", 0), mask.get("count", 0)
+    if not isinstance(count, int) or count < 1 or not isinstance(fps, (int, float)) or not math.isfinite(fps) or fps <= 0:
+        return None
+    scale = min(1, 960 / max(width, height))
+    w, h = max(1, round(width * scale)), max(1, round(height * scale))
+    cx, eyes, chin = (shoot[k] * scale for k in ("faceX", "eyes", "chin"))
+    face_height = (chin - eyes) / .76
+    if not all(math.isfinite(v) for v in (cx, eyes, face_height)) or face_height < 20:
+        return None
+    left, right = max(0, round(cx - .30 * face_height)), min(w, round(cx + .30 * face_height))
+    top, seed = max(0, round(eyes - 1.15 * face_height)), min(h - 1, round(eyes + .15 * face_height))
+    if right - left < 8 or seed <= top:
+        return None
+    center = min(count - 1, int(.4 * fps))
+    indices = range(max(0, center - 2), min(count, center + 3))
+    candidates = []
+    kernel = np.ones((max(1, round(face_height * .015)), 1), np.uint8)
+    for index in indices:
+        path = Path(mask["dir"]) / f"{index + 1:06d}.png"
+        if not path.is_file():
+            continue
+        image = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            continue
+        image = cv2.resize(image, (w, h), interpolation=cv2.INTER_NEAREST)
+        face = (image[top:seed + 1, left:right] >= 128).astype(np.uint8)
+        face = cv2.morphologyEx(face, cv2.MORPH_CLOSE, kernel)
+        crowns = []
+        for column in face.T:
+            if not column[-1]:
+                continue
+            background = np.flatnonzero(column == 0)
+            crown = top + (int(background[-1]) + 1 if background.size else 0)
+            if (crown == top and top > 0) or crown >= eyes - .15 * face_height:
+                continue
+            crowns.append(crown)
+        if len(crowns) < .6 * (right - left):
+            continue
+        low, high = np.percentile(crowns, [25, 75])
+        if high - low <= .22 * face_height:
+            candidates.append(float(low))
+    if len(candidates) < math.ceil(len(indices) * .6) or max(candidates) - min(candidates) > .12 * face_height:
+        return None
+    return round(float(np.median(candidates)) / scale, 3)
+
+
+def face_measurements(plate: Path, width: int, height: int, mask: dict | None = None) -> dict:
     import cv2
     from .reframe import _detector
     cap = cv2.VideoCapture(str(plate))
@@ -218,6 +282,7 @@ def face_measurements(plate: Path, width: int, height: int) -> dict:
     cap.release()
     x, y, fw, fh = width * .35, height * .24, width * .3, height * .25
     tone = .1
+    found = []
     if ok:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         found = _detector().detectMultiScale(gray, 1.1, 5, minSize=(40, 40))
@@ -226,8 +291,13 @@ def face_measurements(plate: Path, width: int, height: int) -> dict:
         patch = gray[int(min(height - 1, y + fh * 1.4)):int(min(height, y + fh * 2)), :]
         if patch.size:
             tone = float(patch.mean() / 255)
-    return {"faceX": x + fw / 2, "crown": max(0, y - .5 * fh), "eyes": y + fh * .36,
-            "chin": min(height, y + fh * 1.12), "tone": {"chest": tone}}
+    result = {"faceX": x + fw / 2, "crown": max(0, y - .5 * fh), "eyes": y + fh * .36,
+              "chin": min(height, y + fh * 1.12), "tone": {"chest": tone}}
+    if mask and len(found):
+        crown = _mask_crown(mask, result, width, height)
+        if crown is not None:
+            result["maskCrown"] = crown
+    return result
 
 
 def person_matte_capability() -> dict:
@@ -340,7 +410,8 @@ def prepare_matte(plate: Path, work: Path, fps: float) -> dict:
 def visual_plan(project: Project, version: str, plate: Path, work: Path, timeline: dict, config: dict,
                 edl: dict, draft: bool, offset: float = 0, lang: str | None = None) -> dict:
     from .overlays import load_style, output_words, resolve_caption_style, split_translation
-    w, h = (540, 960) if draft and timeline["height"] > timeline["width"] else (960, 540) if draft else (timeline["width"], timeline["height"])
+    from .render import render_dimensions
+    w, h = render_dimensions(timeline, draft)
     words = output_words(project, timeline)
     cap_spec = edl.get("captions", True)
     translation = None
@@ -365,8 +436,9 @@ def visual_plan(project: Project, version: str, plate: Path, work: Path, timelin
                 e["assetDuration"] = probe(Path(e["asset"]))["duration"]
         effects.append(e)
     nat = brand_nat_settings(config)
+    overlap = bool(nat and nat.get("subjectOverlap") and nat["layout"] in {"L5", "L6"} and w / h < 1.25)
     mask = prepare_matte(plate, work, timeline["fps"]) if (any(e["type"] in matte_types for e in effects)
-            or brand_nat_needs_matte(nat, offset)) else None
+            or brand_nat_needs_matte(nat, offset, w, h)) else None
     people = read_json(project.root / "people.json") if (project.root / "people.json").exists() else []
     from .overlays import _phrase_time
     names = {p["id"]: p for p in people}
@@ -390,7 +462,7 @@ def visual_plan(project: Project, version: str, plate: Path, work: Path, timelin
                 "width": w, "height": h, "fps": timeline["fps"], "duration": timeline["duration"], "plate": str(plate),
                 "words": words if cap_spec else [], "translation": translation if cap_spec else None, "effects": effects, "mask": mask,
                 "captionStyle": resolve_caption_style(project, timeline, cap_spec) if original and cap_spec else None,
-                "thirds": thirds, "scenes": config.get("scenes", []), "shoot": {"width": w, "height": h, **face_measurements(plate, w, h)}}
+                "thirds": thirds, "scenes": config.get("scenes", []), "shoot": {"width": w, "height": h, **face_measurements(plate, w, h, mask if overlap else None)}}
     if nat is not None:
         manifest["brandNat"] = nat
         manifest["timelineOffset"] = offset
@@ -425,7 +497,7 @@ def preview_source(project: Project, version: str, matte: bool = False) -> dict:
         digest.update(f'{path}:{stat.st_size}:{stat.st_mtime_ns}'.encode())
     digest.update(json.dumps(read_json(project.root / 'style.json') if (project.root / 'style.json').exists() else {}, sort_keys=True).encode())
     # Increment this tag when the cut-only encoding changes.
-    digest.update(b'live-preview-v1')
+    digest.update(b'live-preview-v2-aspect')
     plate = project.root / 'renders' / f'__live-{version}-{digest.hexdigest()[:20]}.mp4'
     (project.root / 'cache').mkdir(exist_ok=True)
     plate.parent.mkdir(exist_ok=True)
@@ -453,4 +525,9 @@ def preview_source(project: Project, version: str, matte: bool = False) -> dict:
                     pass  # An unused or unfinished upload must not block style comparison.
         if matte:
             plan['mask'] = prepare_matte(plate, work, timeline['fps'])
+            # This source serves every look. Attach optional geometry without
+            # changing the ordinary crown used when speaker overlap is off.
+            measured = face_measurements(plate, plan['width'], plan['height'], plan['mask'])
+            if 'maskCrown' in measured:
+                plan['shoot']['maskCrown'] = measured['maskCrown']
     return plan

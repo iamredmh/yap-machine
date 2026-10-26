@@ -45,7 +45,7 @@ export type VisualPlan = {
     captionStyle?: {font:string;size:number;color:string;active?:string;case:string;y:number;highlight:boolean;max_words:number;max_chars:number;outline:number;shadow:number}|null;
     effects: Effect[];
     thirds: any[];
-    shoot: Omit<Shoot, 'plate'>;
+    shoot: Omit<Shoot, 'plate'> & {maskCrown?: number};
     mask?: {
         url: string;
         fps: number;
@@ -87,7 +87,10 @@ function reelPlan(p: VisualPlan): ReelPlan {
             let shot: Shot = { scene: 'talk', frames, props: { layout: PACK.id === 'ledger' || PACK.id === 'glass' ? 'halfBand' : PACK.id === 'terminal' ? 'tile' : 'full', head } };
             if (i === 0 && head && PACK.id !== 'pop') {
                 const all = words.slice(0, 6).map(w => ({ t: w.text }));
-                shot = { scene: 'title', frames, props: { lead: words.slice(0, 2).map(w => w.text).join(' '), lines: [all.slice(2, 4).length ? all.slice(2, 4) : all.slice(0, 2), all.slice(4).length ? all.slice(4).map(w => ({ ...w, hero: true })) : all.slice(0, 1).map(w => ({ ...w, hero: true }))], sizes: [150, 160] } };
+                const leadCount=Math.min(2,Math.max(0,all.length-1)),remaining=all.slice(leadCount);
+                const rows=remaining.length>2?[remaining.slice(0,2),remaining.slice(2)]:[remaining];
+                const lines=rows.map((row,index)=>row.map(w=>({...w,...(index===rows.length-1?{hero:true}:{})})));
+                shot = { scene: 'title', frames, props: { lead: all.slice(0,leadCount).map(w=>w.t).join(' '), lines, sizes: lines.map((_,index)=>index===lines.length-1?160:150) } };
             }
             else if (words.length && i === 1 && ['volt', 'pop', 'terminal'].includes(PACK.id) && !p.translation) {
                 const gs = groupWords(words, 2).map(g => ({ from: Math.round(g[0].start * fps) - at, to: Math.min(frames, Math.round((g.at(-1)!.end + .1) * fps) - at), words: g.map((w, j) => ({ text: w.text, at: Math.max(0, Math.round(w.start * fps) - at), key: j === g.length - 1 })) }));

@@ -27,4 +27,17 @@ describe('Brand Nat recipes', () => {
         expect(brandNatNeedsMask('nat-clean', { hook: 'none', finish: 'G2' })).toBe(false);
         expect(brandNatNeedsMask('volt', { hook: 'H1' })).toBe(false);
     });
+    it('leaves older recipes unchanged and requests overlap masks only for top title panels', () => {
+        expect(resolveBrandNat('nat-bold', { title: 'An older saved look' })?.subjectOverlap).toBe(false);
+        for (const layout of ['L5', 'L6'] as const) {
+            const recipe = { layout, subjectOverlap: true };
+            expect(brandNatNeedsMask('nat-clean', recipe, { width: 432, height: 768 })).toBe(true);
+            expect(brandNatNeedsMask('nat-clean', recipe, { width: 1080, height: 1080 })).toBe(true);
+            expect(brandNatNeedsMask('nat-clean', recipe, { width: 1250, height: 1000 })).toBe(false);
+            expect(brandNatNeedsMask('nat-clean', { ...recipe, subjectOverlap: false })).toBe(false);
+        }
+        expect(brandNatNeedsMask('nat-clean', { layout: 'L4', subjectOverlap: true })).toBe(false);
+        expect(brandNatNeedsMask('original', { layout: 'L5', subjectOverlap: true })).toBe(false);
+        expect(brandNatNeedsMask('nat-clean', { layout: 'L5', subjectOverlap: true, finish: 'G6' }, { width: 1920, height: 1080 })).toBe(true);
+    });
 });

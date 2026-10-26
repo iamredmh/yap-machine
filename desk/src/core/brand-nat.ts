@@ -9,8 +9,9 @@ export type NatPreset = typeof natPresets[number];
 export type BrandNat = {
     caption: typeof natCaptions[number]; hook: typeof natHooks[number]; layout: typeof natLayouts[number];
     finish: typeof natFinishes[number]; title: string; subtitle: string; emphasis?: string; position: typeof natPositions[number];
+    subjectOverlap?: boolean;
 };
-const common = { title: '', subtitle: '', emphasis: '', position: 'auto' as const };
+const common = { title: '', subtitle: '', emphasis: '', position: 'auto' as const, subjectOverlap: false };
 export const brandNatDefaults: Record<NatPreset, BrandNat> = {
     'nat-editorial': { ...common, hook: 'H10', caption: 'C9', layout: 'L4', finish: 'G2' },
     'nat-warm': { ...common, hook: 'H4', caption: 'C6', layout: 'L4', finish: 'G5' },
@@ -25,7 +26,14 @@ export function isNatPreset(preset: string): preset is NatPreset {
 export function resolveBrandNat(preset: string, value?: Partial<BrandNat>, catalogDefaults?: Partial<BrandNat>): BrandNat | undefined {
     return isNatPreset(preset) ? { ...brandNatDefaults[preset], ...catalogDefaults, ...value } : undefined;
 }
-export function brandNatNeedsMask(preset: string, value?: Partial<BrandNat>): boolean {
+export type LookCanvas = { width: number; height: number };
+/** Wide canvases use a side panel; only the top title band can be overlapped. */
+export function brandNatHasTopPanel(config?: Partial<BrandNat>, canvas?: LookCanvas): boolean {
+    return (config?.layout === 'L5' || config?.layout === 'L6')
+        && (!canvas || canvas.width / canvas.height < 1.25);
+}
+export function brandNatNeedsMask(preset: string, value?: Partial<BrandNat>, canvas?: LookCanvas): boolean {
     const config = resolveBrandNat(preset, value);
-    return config?.hook === 'H1' || config?.finish === 'G6';
+    return config?.hook === 'H1' || config?.finish === 'G6'
+        || (config?.subjectOverlap === true && brandNatHasTopPanel(config, canvas));
 }

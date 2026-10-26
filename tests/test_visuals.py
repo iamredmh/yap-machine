@@ -183,10 +183,12 @@ def test_preview_keeps_a_name_card_from_before_the_preview_and_loops_asset(proje
     assert plan['captionStyle']['max_words']==3
 
 
-def test_live_source_reuses_undecorated_cut_and_invalidates_changed_footage(project,timeline,monkeypatch):
+@pytest.mark.parametrize('width,height,shape', [(1080,1920,(540,960)),(1080,1080,(960,960)),(1080,1350,(768,960))])
+def test_live_source_reuses_undecorated_cut_and_invalidates_changed_footage(project,timeline,monkeypatch,width,height,shape):
     import yap.visuals as visuals
     from yap.visuals import preview_source
     from types import SimpleNamespace
+    timeline={**timeline,'width':width,'height':height}
     video=project.root/'camera.mp4';video.write_bytes(b'first source')
     (project.root/'uploads').mkdir()
     (project.root/'uploads'/'agent-background.mp4').write_bytes(b'agent supplied video')
@@ -206,8 +208,9 @@ def test_live_source_reuses_undecorated_cut_and_invalidates_changed_footage(proj
     monkeypatch.setattr(visuals,'run',ffmpeg)
     a=preview_source(project,'v1');b=preview_source(project,'v1')
     assert a['plate']==b['plate'] and len(calls)==1
+    assert (a['width'],a['height'])==shape
     assert a['effects']==[] and a['cutBoundaries']==[5]
-    assert a['captionStyle']['max_words']==3
+    assert a['captionStyle']['max_words']==(3 if height>width else 9)
     assert a['assetDurations']=={'uploads/agent-background.mp4':.8}
     video.write_bytes(b'replaced longer source')
     c=preview_source(project,'v1')

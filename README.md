@@ -91,7 +91,7 @@ Chromium browser on first use if an existing one is not configured.
 
 The source scripts target **macOS and Linux**. Automatic person cutout effects require **macOS 12 or newer** and
 **Apple Command Line Tools** (`xcode-select --install`). These effects include
-text behind the speaker, background replacement and paper cutouts. Other styles,
+text behind the speaker, speaker overlap with title panels, background replacement and paper cutouts. Other styles,
 captions, counters and effects that do not use person masks can run on Linux. Windows users can try WSL2; that route has not yet been verified.
 
 ## Transcription

@@ -18,7 +18,8 @@
         "title": "",
         "subtitle": "",
         "position": "auto",
-        "emphasis": ""
+        "emphasis": "",
+        "subjectOverlap": false
       }
     },
     {
@@ -38,7 +39,8 @@
         "title": "",
         "subtitle": "",
         "position": "auto",
-        "emphasis": ""
+        "emphasis": "",
+        "subjectOverlap": false
       }
     },
     {
@@ -58,7 +60,8 @@
         "title": "",
         "subtitle": "",
         "position": "auto",
-        "emphasis": ""
+        "emphasis": "",
+        "subjectOverlap": false
       }
     },
     {
@@ -78,7 +81,8 @@
         "title": "",
         "subtitle": "",
         "position": "auto",
-        "emphasis": ""
+        "emphasis": "",
+        "subjectOverlap": false
       }
     },
     {
@@ -518,7 +522,8 @@
         "title": "",
         "subtitle": "",
         "position": "auto",
-        "emphasis": ""
+        "emphasis": "",
+        "subjectOverlap": false
       }
     }
   ]
